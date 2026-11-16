@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Clinical Calculators</title>
+<style>
+body { font-family: Arial; margin: 40px; }
+a { display: block; margin: 10px 0; font-size: 18px; }
+</style>
+</head>
+<body>
+<h1>Clinical Calculators</h1>
+<a href="Chest%20Pain%20ED%20Assess%20Tool.html">Chest Pain ED Assess Tool</a>
+<a href="Trauma%20AIS-ISS-RTS-TRISS%20Calc.html">Trauma AIS-ISS-RTS-TRISS Calc</a>
+<a href="burn_calc_v4.html">Burn Calc</a>
+<a href="pat_compact_id.html">PAT Compact ID</a>
+<a href="rsi_calc_v7.html">RSI Calc</a>
+<a href="vasoaktif-kalkulator-offline.html">Vasoaktif Kalkulator</a>
+</body>
+</html>
