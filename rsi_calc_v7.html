@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Kalkulator RSI</title>
+<style>
+:root{--bg:#121c2b;--c1:#1b2b42;--c2:#243852;--ln:#36506f;--tx:#eaf1f8;--mu:#a6b8cd;--ac:#6cb6ff;--ok:#4fd8a8;--wn:#f6c35f;--bd:#ff8a8a;--vio:#b79cff;--teal:#4fd8c4;--cat:#f6c35f;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+main{max-width:480px;margin:0 auto;padding:12px}
+header{padding:8px 4px 14px}
+h1{font-size:21px;margin:0;font-weight:700}
+header p{margin:2px 0 0;color:var(--mu);font-size:13px}
+.card{background:var(--c1);border:1px solid var(--ln);border-radius:12px;padding:14px;margin-bottom:12px}
+h2{font-size:15px;font-weight:700;color:var(--tx);margin:0 0 12px;padding-left:9px;border-left:4px solid var(--hc,var(--ac))}
+.g{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.w{grid-column:1/-1}
+label{display:block;font-size:13px;color:var(--mu);margin-bottom:4px}
+input,select{width:100%;background:var(--c2);color:var(--tx);border:1px solid var(--ln);border-radius:8px;padding:10px;font:inherit;font-size:17px;font-weight:600}
+input:focus,select:focus,button:focus-visible{outline:2px solid var(--ac);outline-offset:1px}
+input[type=number]{-moz-appearance:textfield}
+input::-webkit-inner-spin-button,input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+input[type=checkbox]{width:20px;height:20px;padding:0;accent-color:var(--ac);flex:none}
+.sw{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--tx);margin:2px 0 0}
+.sm{font-size:12px;color:var(--mu);margin:8px 0 0}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.tile{background:var(--c2);color:var(--tx);border:1px solid var(--ln);border-top:4px solid var(--tc);border-radius:10px;padding:9px 4px;font:inherit;text-align:center;line-height:1.3}
+.tile b{display:block;font-size:15px}
+.tile small{font-size:11px;color:var(--mu)}
+.tile.ind{--tc:#f6c35f;--tb:#f6c35f2b}
+.tile.ana{--tc:#6cb6ff;--tb:#6cb6ff2b}
+.tile.par{--tc:#ff8a8a;--tb:#ff8a8a2b}
+.tile.on{background:var(--tb);border-color:var(--tc)}
+.tile.on b{color:var(--tc)}
+body.ind{--cat:#f6c35f}body.ana{--cat:#6cb6ff}body.par{--cat:#ff8a8a}
+#tot{font-size:22px;color:var(--cat)}
+.leg b{color:var(--vio)}
+.note.se{border-left-color:var(--vio)}
+.note.se b{color:var(--vio)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.chip{background:var(--c2);color:var(--tx);border:1px solid var(--ln);border-radius:16px;padding:6px 11px;font:inherit;font-size:13px}
+.chip.on{border-color:var(--cat);color:var(--cat)}
+.vol{display:flex;align-items:center;gap:10px}
+.vol input{width:130px;font-size:34px;font-weight:800;text-align:center;color:var(--cat);border-color:var(--cat);padding:6px}
+.vol span{font-size:18px;font-weight:700;color:var(--mu)}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--ln);font-size:14px}
+.kv:last-of-type{border-bottom:0}
+.kv b{font-size:16px;text-align:right}
+.tot{font-size:30px;font-weight:800;margin:0}
+.st{border-radius:8px;padding:8px 10px;font-size:14px;font-weight:600;margin:10px 0}
+.st.ok{background:#43d9a022;color:var(--ok)}
+.st.wn{background:#ffc95c22;color:var(--wn)}
+.st.bd{background:#ff707022;color:var(--bd)}
+#err{display:none;background:#ff707022;color:var(--bd);border-radius:8px;padding:8px 10px;font-weight:600;margin-bottom:10px}
+#warn p{margin:6px 0 0;font-size:13px;color:var(--wn)}
+.pk{display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:14px}
+.pk div{background:var(--c2);border-radius:8px;padding:8px 10px}
+.pk small{display:block;color:var(--mu);font-size:12px}
+.pk b{color:var(--wn)}
+.note{margin:10px 0 0;font-size:13px;line-height:1.5;border-left:3px solid var(--bd);padding-left:10px}
+</style>
+</head>
+<body>
+<main>
+<header><h1>Kalkulator RSI</h1><p>Dari target dosis ke volume tarik, atau hitung balik dari volume.</p></header>
+
+<section class="card" style="--hc:var(--vio)">
+<h2>Pasien</h2>
+<div class="g">
+<div><label for="w">Berat badan (kg)</label><input id="w" type="number" inputmode="decimal" step="any" value="60"></div>
+<div><label for="h">Tinggi badan (cm)</label><input id="h" type="number" inputmode="decimal" step="any" placeholder="untuk IBW/LBM"></div>
+<div><label for="sex">Jenis kelamin</label><select id="sex"><option value="M">Laki-laki</option><option value="F">Perempuan</option></select></div>
+<div><label for="bsel">Basis BB dosis</label><select id="bsel"><option value="auto">Otomatis</option><option value="TBW">BB aktual (TBW)</option><option value="IBW">BB ideal (IBW)</option><option value="LBM">Tanpa lemak (LBM)</option></select></div>
+<label class="sw w"><input type="checkbox" id="shock"> Syok atau hemodinamik tidak stabil (dosis awal diturunkan)</label>
+</div>
+<p class="sm" id="bwd">Otomatis: BMI di bawah 30 memakai BB aktual; BMI 30 atau lebih memakai basis khusus tiap obat (perlu tinggi badan).</p>
+<p class="sm leg"><b>TBW</b> (total body weight): berat badan aktual. <b>IBW</b> (ideal body weight): berat badan ideal dari tinggi dan jenis kelamin, rumus Devine. <b>LBM</b> (lean body mass): massa tubuh tanpa lemak, rumus Janmahasatian. <b>BMI</b> (body mass index): indeks massa tubuh.</p>
+</section>
+
+<section class="card" style="--hc:var(--cat)">
+<h2>Obat dan sediaan</h2>
+<div class="tiles" id="tiles">
+<button type="button" class="tile ind" data-k="propofol"><b>Propofol</b><small>Induksi</small></button>
+<button type="button" class="tile ind" data-k="ketamine"><b>Ketamine</b><small>Induksi</small></button>
+<button type="button" class="tile ind" data-k="midazolam"><b>Midazolam</b><small>Induksi</small></button>
+<button type="button" class="tile ana" data-k="fentanyl"><b>Fentanyl</b><small>Opioid</small></button>
+<button type="button" class="tile par" data-k="rocuronium"><b>Rocuronium</b><small>Pelumpuh otot</small></button>
+<button type="button" class="tile par" data-k="atracurium"><b>Atracurium</b><small>Pelumpuh otot</small></button>
+</div>
+<label>Sediaan (ketuk untuk mengisi)</label>
+<div class="chips" id="chips"></div>
+<div class="g">
+<div class="w"><label for="dose">Target dosis (<span class="u"></span>/kg) <span id="rng"></span></label><input id="dose" type="number" inputmode="decimal" step="any"></div>
+<div><label for="amt">Total sediaan (<span class="u"></span>)</label><input id="amt" type="number" inputmode="decimal" step="any"></div>
+<div><label for="dil">Total spuit oplosan (ml)</label><input id="dil" type="number" inputmode="decimal" step="any"></div>
+<div class="w"><label>Spuit untuk menarik obat</label>
+<div class="chips" id="syr">
+<button type="button" class="chip" data-g="0.01" data-s="1">1 ml</button>
+<button type="button" class="chip" data-g="0.1" data-s="3">3 ml</button>
+<button type="button" class="chip" data-g="0.2" data-s="5">5 ml</button>
+<button type="button" class="chip on" data-g="0.2" data-s="10">10 ml</button>
+<button type="button" class="chip" data-g="1" data-s="20">20 ml</button>
+</div>
+<p class="sm" id="syh" style="margin:0"></p></div>
+</div>
+</section>
+
+<section class="card" style="--hc:var(--teal)">
+<h2>Hasil</h2>
+<div id="err"></div>
+<label for="vol">Volume disuntikkan (bisa diketik untuk hitung balik)</label>
+<div class="vol"><input id="vol" type="number" inputmode="decimal" step="any"><span>ml (cc)</span></div>
+<div class="st" id="st"></div>
+<div id="warn"></div>
+<div class="kv"><span>Total dosis</span><b id="tot">—</b></div>
+<div class="kv"><span>BB dosis</span><b id="bw">—</b></div>
+<div class="kv"><span>Konsentrasi</span><b id="conc">—</b></div>
+<div class="kv"><span id="rl">Dibulatkan (spuit 10 ml)</span><b id="rnd">—</b></div>
+</section>
+
+<section class="card" style="--hc:var(--wn)">
+<h2>Farmakokinetik</h2>
+<div class="pk">
+<div><small>Onset</small><b id="on">-</b></div>
+<div><small>Durasi efek</small><b id="du">-</b></div>
+<div class="w"><small>Basis BB pada obesitas</small><b id="bs">-</b></div>
+</div>
+<p class="note" id="note"></p>
+<p class="note se"><b>Efek samping:</b> <span id="se"></span></p>
+</section>
+</main>
+
+<script>
+const D={
+propofol:{l:'Induksi',c:'ind',u:'mg',d:2,r:[1.5,2.5],sd:1,sr:[0.5,1],b:'LBM',
+p:[[200,20,'200 mg / 20 ml (1%, murni)']],on:'15–45 detik',du:'5–10 menit',
+note:'Bolus cepat menaikkan risiko apnea dan hipotensi berat. Pada syok, geriatri, atau hemodinamik tidak stabil, turunkan dosis menjadi 0.5–1 mg/kg.'},
+midazolam:{l:'Induksi',c:'ind',u:'mg',d:0.2,r:[0.1,0.3],sd:0.1,sr:[0.05,0.1],b:'TBW',
+p:[[15,15,'15 mg / 15 ml (1 mg/ml)'],[15,3,'15 mg / 3 ml (5 mg/ml, murni)']],on:'2–5 menit',du:'30–60 menit',
+note:'Onset terlalu lambat untuk RSI murni; lebih sesuai untuk premedikasi atau delayed sequence intubation. Depresi napas bersifat aditif bila dikombinasi dengan opioid.'},
+ketamine:{l:'Induksi',c:'ind',u:'mg',d:1.5,r:[1,2],sd:0.75,sr:[0.5,1],b:'IBW',
+p:[[100,10,'100 mg / 10 ml (10 mg/ml)'],[500,10,'500 mg / 10 ml (50 mg/ml, murni)']],on:'30–60 detik',du:'10–20 menit',
+note:'Umumnya stabil secara hemodinamik karena pelepasan katekolamin. Pada syok berat cadangan katekolamin menipis sehingga efek depresan miokard langsung dapat muncul; turunkan dosis menjadi 0.5–1 mg/kg. Bolus terlalu cepat dapat memicu apnea transien.'},
+fentanyl:{l:'Opioid / analgesik',c:'ana',u:'mcg',d:2,r:[1,3],sd:1,sr:[0.5,1.5],b:'IBW',
+p:[[100,10,'100 mcg / 10 ml (10 mcg/ml)'],[100,2,'100 mcg / 2 ml (50 mcg/ml, murni)']],on:'1–2 menit (puncak 3–5 menit)',du:'30–60 menit',
+note:'Dosis tinggi dengan bolus sangat cepat dapat menyebabkan chest wall rigidity sehingga ventilasi bag-mask sulit. Kurangi dosis atau hindari pada hipotensi.'},
+rocuronium:{l:'Pelumpuh otot',c:'par',u:'mg',d:1.2,r:[0.6,1.2],sd:1.2,sr:[0.6,1.2],b:'IBW',
+p:[[50,5,'50 mg / 5 ml (10 mg/ml, murni)']],on:'45–60 detik pada 1.0–1.2 mg/kg',du:'sekitar 60–70 menit atau lebih pada 1.0–1.2 mg/kg; sekitar 30–45 menit pada 0.6 mg/kg',
+note:'Untuk RSI gunakan 1.0 mg/kg atau lebih agar onset 45–60 detik; pada 0.6 mg/kg onset 60–90 detik. Pada dosis tinggi durasi bisa melebihi satu jam, jadi siapkan sedasi lanjutan dan ketersediaan reversal.'},
+atracurium:{l:'Pelumpuh otot',c:'par',u:'mg',d:0.5,r:[0.5,0.6],sd:0.5,sr:[0.5,0.6],b:'TBW',
+p:[[50,5,'50 mg / 5 ml (10 mg/ml, murni)']],on:'2–3 menit',du:'30–45 menit',
+note:'Tidak ideal untuk RSI karena onset lambat. Memicu pelepasan histamin: flushing, takikardia, hipotensi, bronkospasme. Berikan dengan push lambat.'}
+};
+const $=i=>document.getElementById(i),N=i=>parseFloat($(i).value),f=x=>+x.toFixed(2);
+let K='propofol',G=0.2;
+const SE={
+propofol:'Hipotensi (vasodilatasi dan depresi miokard), apnea atau depresi napas, bradikardia, nyeri saat penyuntikan di vena kecil, mioklonus.',
+ketamine:'Hipersalivasi dan hipersekresi bronkus (dapat memicu laringospasme; atropin atau glikopirolat opsional), peningkatan tekanan darah dan nadi, emergence reaction (agitasi, mimpi buruk, halusinasi), nistagmus, mual muntah, apnea bila bolus terlalu cepat.',
+midazolam:'Depresi napas, hipotensi, sedasi berkepanjangan (lansia, gangguan hati atau ginjal), amnesia anterograd, reaksi paradoksal berupa agitasi.',
+fentanyl:'Depresi napas hingga apnea, bradikardia, hipotensi (lebih nyata bersama sedatif), chest wall rigidity pada bolus cepat, mual muntah, pruritus.',
+rocuronium:'Paralisis tanpa sedasi berisiko awareness; blokade memanjang pada gangguan hati atau ginjal, hipotermia, asidosis, hipomagnesemia, atau bersama aminoglikosida; takikardia ringan; reaksi hipersensitivitas hingga anafilaksis (jarang).',
+atracurium:'Pelepasan histamin (flushing, hipotensi, takikardia, bronkospasme), reaksi anafilaksis, paralisis tanpa sedasi berisiko awareness, metabolit laudanosine yang dapat memicu kejang pada pemakaian lama.'
+};
+const NM={TBW:'BB aktual (TBW)',IBW:'BB ideal (IBW)',LBM:'massa tanpa lemak (LBM)'};
+const dr=()=>D[K];
+const rg=()=>$('shock').checked?dr().sr:dr().r;
+
+function setDrug(){
+  const d=dr();
+  document.body.className=d.c;
+  document.querySelectorAll('.tile').forEach(t=>t.classList.toggle('on',t.dataset.k===K));
+  document.querySelectorAll('.u').forEach(e=>e.textContent=d.u);
+  $('chips').innerHTML=d.p.map((p,i)=>'<button type="button" class="chip" data-i="'+i+'">'+p[2]+'</button>').join('');
+  pickPre(0,true);
+  $('on').textContent=d.on;$('du').textContent=d.du;
+  $('bs').textContent=d.b==='TBW'?NM.TBW:NM[d.b]+' bila BMI 30 atau lebih; selain itu BB aktual (TBW)';
+  $('note').textContent=d.note;$('se').textContent=SE[K];
+  setDose();
+}
+function pickPre(i,init){
+  const p=dr().p[i];$('amt').value=p[0];$('dil').value=p[1];
+  document.querySelectorAll('#chips .chip').forEach((c,j)=>c.classList.toggle('on',j===i));
+  if(!init)fromDose();
+}
+function setDose(){
+  const d=dr(),s=$('shock').checked;
+  $('dose').value=s?d.sd:d.d;
+  $('rng').textContent='(range '+rg()[0]+'–'+rg()[1]+')';
+  fromDose();
+}
+function ctx(){
+  const W=N('w'),H=N('h'),M=$('sex').value==='M',pref=$('bsel').value,d=dr();
+  let bmi=null,ibw=null,lbm=null;
+  if(W>0&&H>0){
+    const m=H/100;bmi=W/(m*m);
+    ibw=(M?50:45.5)+0.9*(H-152.4);
+    lbm=M?9270*W/(6680+216*bmi):9270*W/(8780+244*bmi);
+  }
+  let bs=pref==='auto'?(bmi>=30?d.b:'TBW'):pref,fb=false;
+  if(bs!=='TBW'&&ibw===null){bs='TBW';fb=true;}
+  const dw=bs==='IBW'?Math.min(ibw,W):bs==='LBM'?Math.min(lbm,W):W;
+  return {W,bmi,ibw,lbm,bs,fb,dw,d,amt:N('amt'),dil:N('dil')};
+}
+function chk(c){
+  if(!(c.W>0))return 'Isi berat badan.';
+  if(!(c.amt>0))return 'Isi total sediaan obat.';
+  if(!(c.dil>0))return 'Isi total volume spuit oplosan.';
+  if(!(c.dw>0))return 'Berat dosis tidak valid; periksa berat dan tinggi badan.';
+  return '';
+}
+function fromDose(){
+  const c=ctx();let e=chk(c);
+  if(!e&&!(N('dose')>0))e='Isi target dosis.';
+  if(e)return out(c,e);
+  const tot=N('dose')*c.dw;
+  $('vol').value=f(tot/(c.amt/c.dil));
+  out(c,'',tot);
+}
+function fromVol(){
+  const c=ctx();let e=chk(c);
+  if(!e&&!(N('vol')>=0))e='Isi volume yang disuntikkan.';
+  if(e)return out(c,e);
+  const tot=N('vol')*c.amt/c.dil;
+  $('dose').value=f(tot/c.dw);
+  out(c,'',tot);
+}
+function useV(v){$('vol').value=v;fromVol();}
+function out(c,e,tot){
+  const E=$('err');E.textContent=e;E.style.display=e?'block':'none';
+  const bwd=$('bwd');
+  if(c.bmi!==null)bwd.textContent='BMI '+f(c.bmi)+', IBW '+f(c.ibw)+' kg, LBM '+f(c.lbm)+' kg.';
+  else bwd.textContent='Otomatis: BMI di bawah 30 memakai BB aktual; BMI 30 atau lebih memakai basis khusus tiap obat (perlu tinggi badan).';
+  if(e){
+    ['tot','bw','conc','rnd'].forEach(i=>$(i).textContent='—');
+    $('st').className='st';$('st').textContent='';$('warn').innerHTML='';
+    return;
+  }
+  const u=c.d.u,conc=c.amt/c.dil,g=G,vx=tot/conc,dk=tot/c.dw,r=rg();
+  $('tot').textContent=f(tot)+' '+u;
+  $('bw').textContent=f(c.dw)+' kg, '+NM[c.bs];
+  $('conc').textContent=f(conc)+' '+u+'/ml';
+  const vr=Math.round(vx/g+1e-9)*g;
+  if(Math.abs(vr-vx)<0.005)$('rnd').textContent='Sudah pas di garis spuit';
+  else $('rnd').innerHTML='<button type="button" class="chip" onclick="useV('+f(vr)+')">Pakai '+f(vr)+' ml</button><br>'+f(vr*conc)+' '+u+' ('+f(vr*conc/c.dw)+' '+u+'/kg)';
+  const s=$('st');
+  if(f(dk)<r[0]){s.className='st wn';s.textContent=f(dk)+' '+u+'/kg: di bawah range ('+r[0]+'–'+r[1]+')';}
+  else if(f(dk)>r[1]){s.className='st bd';s.textContent=f(dk)+' '+u+'/kg: di atas range ('+r[0]+'–'+r[1]+')';}
+  else{s.className='st ok';s.textContent=f(dk)+' '+u+'/kg: dalam range ('+r[0]+'–'+r[1]+')';}
+  const w=[];
+  if(vx>c.dil+1e-9)w.push('Volume melebihi isi spuit oplosan ('+f(c.dil)+' ml).');
+  if(c.fb)w.push('Tinggi badan belum diisi, sehingga IBW (berat badan ideal) dan LBM (massa tanpa lemak) tidak dapat dihitung. Memakai BB aktual (TBW).');
+  if(K==='rocuronium'&&c.bs==='IBW'&&c.bmi>=30)w.push('BMI 30 atau lebih: dosis rocuronium berbasis IBW (berat badan ideal) dapat memperlambat onset dan memperburuk kondisi intubasi. Pertimbangkan TBW atau IBW terkoreksi sesuai protokol setempat.');
+  $('warn').innerHTML=w.map(x=>'<p>'+x+'</p>').join('');
+}
+
+['w','h','amt','dil','dose'].forEach(i=>$(i).addEventListener('input',fromDose));
+['sex','bsel'].forEach(i=>$(i).addEventListener('change',fromDose));
+function syInfo(){const b=document.querySelector('#syr .chip.on');$('rl').textContent='Dibulatkan (spuit '+b.dataset.s+' ml)';$('syh').textContent='Garis terkecil spuit '+b.dataset.s+' ml adalah '+G+' ml. Volume dibulatkan ke garis terdekat.';}
+$('syr').addEventListener('click',e=>{const b=e.target.closest('.chip');if(!b)return;G=+b.dataset.g;document.querySelectorAll('#syr .chip').forEach(c=>c.classList.toggle('on',c===b));syInfo();fromVol();});
+$('vol').addEventListener('input',fromVol);
+$('shock').addEventListener('change',setDose);
+$('tiles').addEventListener('click',e=>{const t=e.target.closest('.tile');if(t){K=t.dataset.k;setDrug();}});
+$('chips').addEventListener('click',e=>{const b=e.target.closest('.chip');if(b)pickPre(+b.dataset.i);});
+setDrug();syInfo();
+</script>
+</body>
+</html>

@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kalkulator Vasoaktif – Syringe Pump</title>
+<style>
+:root{
+  --bg:#E9EEF2;
+  --panel:#FFFFFF;
+  --ink:#16222C;
+  --muted:#5B6B78;
+  --line:#CCD6DE;
+  --violet:#7A3FB0;       /* ISO 26825: vasopressor label colour */
+  --violet-soft:#EEE5F7;
+  --lcd:#1D2A22;
+  --lcd-ink:#B8F5C8;
+  --lcd-dim:#6FA383;
+  --warn:#A34A00;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#101820; --panel:#18232D; --ink:#E4ECF2; --muted:#93A3B0; --line:#2C3A46;
+    --violet:#B98AE6; --violet-soft:#2A2036; --lcd:#0B140F; --lcd-ink:#A6F2BA; --lcd-dim:#4F8563; --warn:#F0A060;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#101820; --panel:#18232D; --ink:#E4ECF2; --muted:#93A3B0; --line:#2C3A46;
+  --violet:#B98AE6; --violet-soft:#2A2036; --lcd:#0B140F; --lcd-ink:#A6F2BA; --lcd-dim:#4F8563; --warn:#F0A060;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:var(--bg); color:var(--ink);
+  font-family:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  font-size:16px; line-height:1.45;
+  -webkit-text-size-adjust:100%;
+}
+.num{font-family:"Atkinson Hyperlegible Mono",ui-monospace,Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}
+main{max-width:520px;margin:0 auto;padding:16px 14px 40px}
+h1{font-size:1.15rem;margin:4px 2px 14px;font-weight:700;letter-spacing:.01em}
+
+/* drug tabs styled as syringe labels */
+.tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.tab{
+  appearance:none;border:2px solid var(--line);background:var(--panel);color:var(--ink);
+  border-radius:6px;padding:10px 6px;font:inherit;font-weight:700;cursor:pointer;
+  border-left:10px solid var(--line);text-align:left;
+}
+.tab small{display:block;font-weight:400;color:var(--muted);font-size:.78rem}
+.tab[aria-selected="true"]{border-color:var(--violet);border-left-color:var(--violet);background:var(--violet-soft)}
+.tab:focus-visible,button:focus-visible,input:focus-visible{outline:3px solid var(--violet);outline-offset:2px}
+
+/* pump display — the one bold element */
+.pump{
+  background:var(--lcd);color:var(--lcd-ink);border-radius:10px;padding:14px 16px 12px;
+  margin-bottom:14px;border:3px solid #33413A;
+}
+.pump-top{display:flex;justify-content:space-between;color:var(--lcd-dim);font-size:.85rem}
+.rate{display:flex;align-items:baseline;gap:8px;margin:2px 0 4px}
+.rate .val{font-size:3.6rem;font-weight:700;line-height:1.05}
+.rate .unit{font-size:1.2rem;color:var(--lcd-dim)}
+.pump-bottom{display:flex;justify-content:space-between;gap:10px;color:var(--lcd-dim);font-size:.85rem;flex-wrap:wrap}
+
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:12px}
+.row-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+.row-head label{font-weight:700}
+.row-head .num{font-size:1.35rem;font-weight:700;color:var(--violet)}
+.row-head .num small{font-size:.8rem;color:var(--muted);font-weight:500}
+
+.ctrl{display:grid;grid-template-columns:44px 1fr 44px;gap:8px;align-items:center}
+.step{
+  appearance:none;width:44px;height:44px;border-radius:8px;border:1px solid var(--line);
+  background:var(--bg);color:var(--ink);font-size:1.4rem;font-weight:700;cursor:pointer;
+}
+input[type=range]{width:100%;accent-color:var(--violet);height:32px;margin:0}
+.ticks{display:flex;justify-content:space-between;color:var(--muted);font-size:.72rem;margin:2px 52px 0}
+.wt-input{display:flex;gap:8px;align-items:center;margin-top:10px;color:var(--muted);font-size:.9rem}
+.wt-input input{
+  width:90px;font:inherit;font-size:1rem;padding:6px 8px;border-radius:6px;border:1px solid var(--line);
+  background:var(--bg);color:var(--ink);
+}
+
+.amp{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.amp-ctrl{display:flex;align-items:center;gap:10px}
+.amp-ctrl .num{font-size:1.25rem;font-weight:700;min-width:1.5ch;text-align:center}
+.recipe{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);color:var(--muted);font-size:.92rem}
+.recipe b{color:var(--ink)}
+.warn{color:var(--warn);font-size:.88rem;margin-top:6px}
+
+.tablewrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.92rem}
+th,td{padding:7px 8px;text-align:right;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--muted);font-weight:400;font-size:.8rem}
+tr.on td{background:var(--violet-soft);font-weight:700}
+tr{cursor:pointer}
+.foot{color:var(--muted);font-size:.8rem;margin:10px 2px 0}
+@media (prefers-reduced-motion:no-preference){ .rate .val{transition:color .15s} }
+</style>
+</head>
+<body>
+<main>
+  <h1>Vasoaktif · syringe pump 50 mL</h1>
+
+  <div class="tabs" role="tablist" id="tabs"></div>
+
+  <section class="pump" aria-live="polite">
+    <div class="pump-top"><span id="pDrug">—</span><span class="num" id="pConc">—</span></div>
+    <div class="rate"><span class="val num" id="pRate">0.0</span><span class="unit">mL/jam</span></div>
+    <div class="pump-bottom">
+      <span class="num" id="pExact">tepat: —</span>
+      <span class="num" id="pDur">habis: —</span>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="row-head"><label for="dose">Dosis</label><span class="num" id="doseOut">—</span></div>
+    <div class="ctrl">
+      <button class="step" id="doseMinus" aria-label="Turunkan dosis">−</button>
+      <input type="range" id="dose" min="0" step="1">
+      <button class="step" id="dosePlus" aria-label="Naikkan dosis">+</button>
+    </div>
+    <div class="ticks num"><span id="tMin"></span><span id="tMax"></span></div>
+  </section>
+
+  <section class="panel">
+    <div class="row-head"><label for="wt">Berat badan</label><span class="num" id="wtOut">—</span></div>
+    <div class="ctrl">
+      <button class="step" id="wtMinus" aria-label="Kurangi 1 kg">−</button>
+      <input type="range" id="wt" min="1" max="200" step="1">
+      <button class="step" id="wtPlus" aria-label="Tambah 1 kg">+</button>
+    </div>
+    <div class="wt-input"><span>Ketik langsung:</span><input type="number" id="wtNum" min="1" max="300" step="0.1" inputmode="decimal"><span>kg</span></div>
+  </section>
+
+  <section class="panel">
+    <div class="amp">
+      <div><b>Jumlah ampul</b><div style="color:var(--muted);font-size:.85rem" id="ampSpec">—</div></div>
+      <div class="amp-ctrl">
+        <button class="step" id="ampMinus" aria-label="Kurangi ampul">−</button>
+        <span class="num" id="ampOut">1</span>
+        <button class="step" id="ampPlus" aria-label="Tambah ampul">+</button>
+      </div>
+    </div>
+    <div class="recipe" id="recipe">—</div>
+    <div class="warn" id="ampWarn" hidden></div>
+  </section>
+
+  <section class="panel">
+    <div class="row-head"><label>Semua dosis untuk BB ini</label><span style="color:var(--muted);font-size:.8rem">ketuk baris</span></div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Dosis (mcg/kg/mnt)</th><th>mL/jam</th><th>Habis dalam</th></tr></thead>
+        <tbody id="tbl"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <p class="foot">Rumus: mL/jam = dosis (mcg/kg/mnt) × BB × 60 ÷ konsentrasi (mcg/mL). Slider bergerak per indeks daftar dosis, jadi tidak ada nilai antara yang terbentuk dari pembulatan desimal. Tampilan dibulatkan ke 0,1 mL/jam (resolusi syringe pump); nilai tepat ditampilkan di bawahnya.</p>
+</main>
+
+<script>
+(function(){
+  const range = (a,b)=>{const r=[];for(let i=a;i<=b;i++)r.push(i);return r;};
+  const DRUGS = {
+    ne:  { name:"Norepinefrin", short:"NE",   ampMg:4,   ampMl:4, spec:"4 mg / 4 mL per ampul",
+           doses:[0.05,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0], def:1, maxAmp:4 },
+    dobu:{ name:"Dobutamin",    short:"Dobu", ampMg:250, ampMl:5, spec:"250 mg / 5 mL per ampul",
+           doses:range(3,20), def:2, maxAmp:4 },
+    dopa:{ name:"Dopamin",      short:"Dopa", ampMg:200, ampMl:5, spec:"200 mg / 5 mL per ampul",
+           doses:range(3,20), def:2, maxAmp:4 }
+  };
+  const SYR = 50;
+
+  // state, one set per drug so switching tabs keeps each drug's settings
+  let state = { drug:"ne", wt:60, ne:{i:1,amp:1}, dobu:{i:2,amp:1}, dopa:{i:2,amp:1} };
+  try{ const s = JSON.parse(localStorage.getItem("vasoCalc")||"null"); if(s&&s.ne&&s.dobu&&s.dopa) state = s; }catch(e){}
+  const save = ()=>{ try{ localStorage.setItem("vasoCalc", JSON.stringify(state)); }catch(e){} };
+
+  const $ = id=>document.getElementById(id);
+  const fmtDose = d => (Number.isInteger(d) ? String(d) : d.toFixed(2).replace(/0$/,""));
+  const round = (x,dp)=>{ const f=Math.pow(10,dp); return Math.round((x+1e-9)*f)/f; };
+  const fmtDur = h => { if(!isFinite(h)) return "—"; const tot=Math.round(h*60); const hh=Math.floor(tot/60), mm=tot%60; return hh+" j "+String(mm).padStart(2,"0")+" m"; };
+
+  function conc(d, amp){ return amp*d.ampMg*1000/SYR; }           // mcg/mL
+  function rate(dose, wt, c){ return dose*wt*60/c; }              // mL/jam
+
+  // tabs
+  const tabs = $("tabs");
+  Object.entries(DRUGS).forEach(([k,d])=>{
+    const b=document.createElement("button");
+    b.className="tab"; b.setAttribute("role","tab"); b.dataset.k=k;
+    b.innerHTML=d.name+"<small>"+d.ampMg+" mg/"+d.ampMl+" mL</small>";
+    b.onclick=()=>{ state.drug=k; render(); };
+    tabs.appendChild(b);
+  });
+
+  const doseEl=$("dose"), wtEl=$("wt"), wtNum=$("wtNum");
+
+  function render(){
+    const k=state.drug, d=DRUGS[k], s=state[k];
+    s.i = Math.max(0, Math.min(d.doses.length-1, s.i));
+    s.amp = Math.max(1, Math.min(d.maxAmp, s.amp));
+    const wt = state.wt;
+    const dose = d.doses[s.i];
+    const c = conc(d, s.amp);
+    const r = rate(dose, wt, c);
+
+    [...tabs.children].forEach(b=>b.setAttribute("aria-selected", b.dataset.k===k));
+
+    doseEl.max = d.doses.length-1; doseEl.value = s.i;
+    $("doseOut").innerHTML = fmtDose(dose)+" <small>mcg/kg/mnt</small>";
+    $("tMin").textContent = fmtDose(d.doses[0]); $("tMax").textContent = fmtDose(d.doses[d.doses.length-1]);
+
+    wtEl.value = Math.min(200, Math.max(1, Math.round(wt)));
+    if (document.activeElement !== wtNum) wtNum.value = wt;
+    $("wtOut").innerHTML = wt+" <small>kg</small>";
+
+    $("ampOut").textContent = s.amp;
+    $("ampSpec").textContent = d.spec;
+    const drugMl = s.amp*d.ampMl, dilMl = SYR - drugMl, mg = s.amp*d.ampMg;
+    $("recipe").innerHTML = "<b>"+mg+" mg</b> ("+s.amp+" amp = "+drugMl+" mL) + pelarut <b>"+dilMl+" mL</b> → total 50 mL<br>Konsentrasi <b class='num'>"+round(c,2)+" mcg/mL</b>"+(c>=1000?" ("+round(c/1000,2)+" mg/mL)":"");
+    const w=$("ampWarn");
+    if (dilMl<0){ w.hidden=false; w.textContent="Volume obat melebihi 50 mL."; } else w.hidden=true;
+
+    $("pDrug").textContent = d.name+" · "+fmtDose(dose)+" mcg/kg/mnt · "+wt+" kg";
+    $("pConc").textContent = round(c,2)+" mcg/mL";
+    $("pRate").textContent = round(r,1).toFixed(1);
+    $("pExact").textContent = "tepat: "+round(r,2).toFixed(2)+" mL/jam";
+    $("pDur").textContent = "habis: "+fmtDur(SYR/r);
+
+    const tb=$("tbl"); tb.innerHTML="";
+    d.doses.forEach((dz,idx)=>{
+      const rr=rate(dz,wt,c);
+      const tr=document.createElement("tr"); if(idx===s.i) tr.className="on";
+      tr.innerHTML="<td class='num'>"+fmtDose(dz)+"</td><td class='num'>"+round(rr,1).toFixed(1)+"</td><td class='num'>"+fmtDur(SYR/rr)+"</td>";
+      tr.onclick=()=>{ s.i=idx; render(); };
+      tb.appendChild(tr);
+    });
+    save();
+  }
+
+  doseEl.addEventListener("input",()=>{ state[state.drug].i = parseInt(doseEl.value,10); render(); });
+  $("doseMinus").onclick=()=>{ state[state.drug].i--; render(); };
+  $("dosePlus").onclick=()=>{ state[state.drug].i++; render(); };
+
+  const setWt = v=>{ if(!isFinite(v)||v<=0) return; state.wt = round(Math.min(300,v),1); render(); };
+  wtEl.addEventListener("input",()=>setWt(parseInt(wtEl.value,10)));
+  wtNum.addEventListener("input",()=>{ const v=parseFloat(String(wtNum.value).replace(",", ".")); if(v>0) setWt(v); });
+  wtNum.addEventListener("blur",()=>{ wtNum.value=state.wt; });
+  $("wtMinus").onclick=()=>setWt(Math.max(1, Math.round(state.wt)-1));
+  $("wtPlus").onclick=()=>setWt(Math.round(state.wt)+1);
+
+  $("ampMinus").onclick=()=>{ state[state.drug].amp--; render(); };
+  $("ampPlus").onclick=()=>{ state[state.drug].amp++; render(); };
+
+  render();
+})();
+</script>
+</body>
+</html>

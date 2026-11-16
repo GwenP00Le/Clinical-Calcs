@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kalkulator Resusitasi Luka Bakar (IGD)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #121212; color: #e0e0e0; }
+        .card { background-color: #1e1e1e; border: 1px solid #333; }
+        .input-dark { background-color: #2a2a2a; border: 1px solid #444; color: #fff; }
+        .input-dark:focus { border-color: #ef4444; outline: none; }
+        .btn-regio { background-color: #333; color: #aaa; transition: all 0.2s; border: 1px solid #444; }
+        .btn-regio.active { background-color: #ef4444; color: white; border-color: #ef4444; font-weight: bold; }
+        .btn-regio:active { transform: scale(0.95); }
+        .text-accent { color: #ef4444; }
+        
+        /* Layout grid map tubuh */
+        .body-map-grid { display: grid; gap: 4px; grid-template-columns: repeat(4, 1fr); margin-bottom: 15px; }
+        
+        input[type="number"]::-webkit-inner-spin-button, 
+        input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type="number"] { -moz-appearance: textfield; }
+        input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(1); }
+    </style>
+</head>
+<body class="font-sans antialiased text-sm">
+
+<div class="max-w-xl mx-auto min-h-screen sm:my-6 overflow-hidden pb-10">
+    
+    <!-- Header -->
+    <div class="bg-red-900 p-4 text-white text-center rounded-t-xl sm:rounded-t-xl">
+        <h1 class="text-xl font-bold tracking-wide">Burn Resuscitation Tool</h1>
+        <p class="text-xs text-red-200 mt-1">Estimasi TBSA & Panduan Titrasi Cairan</p>
+    </div>
+
+    <div class="p-4 space-y-6 card rounded-b-xl shadow-lg">
+        
+        <!-- Parameter Dasar -->
+        <div class="space-y-3">
+            <h2 class="text-lg font-bold text-white border-b border-gray-700 pb-1">1. Parameter Pasien</h2>
+            
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 mb-1">Berat Badan (kg)</label>
+                    <input type="number" id="weight" value="60" class="w-full input-dark rounded-md p-2 text-center text-lg font-bold" oninput="calculate()">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 mb-1">Tipe Pasien</label>
+                    <select id="patient-type" class="w-full input-dark rounded-md p-2 text-center text-lg font-bold" onchange="resetTbsa(); calculate()">
+                        <option value="adult">Dewasa (>15th)</option>
+                        <option value="pediatric">Anak (<15th)</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 mb-1">Etiologi Luka Bakar</label>
+                    <select id="etiology" class="w-full input-dark rounded-md p-2" onchange="calculate()">
+                        <option value="thermal">Termal / Kimia</option>
+                        <option value="electrical">Elektrik (Tegangan Tinggi)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 mb-1">Faktor Rumus (ml/kg/%TBSA)</label>
+                    <div class="flex items-center">
+                        <input type="number" id="formula-factor" step="0.1" value="3" class="w-full input-dark rounded-md p-2 text-center text-lg font-bold" oninput="calculate()">
+                    </div>
+                    <p class="text-[10px] text-gray-500 mt-1 leading-tight text-center" id="formula-hint">Rekomendasi Umum: 3-4 ml. Modified Brooke: 2 ml.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Kalkulator TBSA (Rule of Nines Refined) -->
+        <div class="space-y-3">
+            <h2 class="text-lg font-bold text-white border-b border-gray-700 pb-1 flex justify-between items-center">
+                <span>2. Estimasi Luas Luka Bakar (TBSA)</span>
+                <span class="text-xl text-accent font-black" id="total-tbsa-display">0%</span>
+            </h2>
+            <p class="text-[11px] text-gray-400 leading-tight">Pilih area luka derajat II & III. Regio batang tubuh & kaki telah dirinci.</p>
+            
+            <div id="adult-map" class="body-map-grid text-[10px] sm:text-xs">
+                <!-- Kepala & Leher (Total 9%) -->
+                <button class="btn-regio p-2 rounded col-span-2" data-val="4.5" onclick="toggleRegio(this)">Kepala Dpn (4.5%)</button>
+                <button class="btn-regio p-2 rounded col-span-2" data-val="4.5" onclick="toggleRegio(this)">Kepala Blk (4.5%)</button>
+                
+                <!-- Badan Depan (Total 18%) dipisah Thorax 9%, Abdomen 9% -->
+                <button class="btn-regio p-1 rounded col-span-2" data-val="9" onclick="toggleRegio(this)">Thorax Dpn (9%)</button>
+                <button class="btn-regio p-1 rounded col-span-2" data-val="9" onclick="toggleRegio(this)">Thorax Blk (9%)</button>
+                <button class="btn-regio p-1 rounded col-span-2" data-val="9" onclick="toggleRegio(this)">Abdomen Dpn (9%)</button>
+                <button class="btn-regio p-1 rounded col-span-2" data-val="9" onclick="toggleRegio(this)">Abdomen Blk (9%)</button>
+                
+                <!-- Lengan Kanan (Total 9%) -->
+                <button class="btn-regio p-2 rounded col-span-1" data-val="4.5" onclick="toggleRegio(this)">Lgn Kn Dpn (4.5%)</button>
+                <button class="btn-regio p-2 rounded col-span-1" data-val="4.5" onclick="toggleRegio(this)">Lgn Kn Blk (4.5%)</button>
+                
+                <!-- Lengan Kiri (Total 9%) -->
+                <button class="btn-regio p-2 rounded col-span-1" data-val="4.5" onclick="toggleRegio(this)">Lgn Kr Dpn (4.5%)</button>
+                <button class="btn-regio p-2 rounded col-span-1" data-val="4.5" onclick="toggleRegio(this)">Lgn Kr Blk (4.5%)</button>
+                
+                <!-- Genital (Total 1%) -->
+                <button class="btn-regio p-2 rounded col-span-4" data-val="1" onclick="toggleRegio(this)">Genital (1%)</button>
+                
+                <!-- Paha (Atas) (Total 18%) -->
+                <button class="btn-regio p-1 rounded col-span-1" data-val="4.5" onclick="toggleRegio(this)">Paha Kn Dpn (4.5%)</button>
+                <button class="btn-regio p-1 rounded col-span-1" data-val="4.5" onclick="toggleRegio(this)">Paha Kn Blk (4.5%)</button>
+                <button class="btn-regio p-1 rounded col-span-1" data-val="4.5" onclick="toggleRegio(this)">Paha Kr Dpn (4.5%)</button>
+                <button class="btn-regio p-1 rounded col-span-1" data-val="4.5" onclick="toggleRegio(this)">Paha Kr Blk (4.5%)</button>
+                
+                <!-- Betis (Bawah) (Total 18%) -->
+                <button class="btn-regio p-1 rounded col-span-1" data-val="4.5" onclick="toggleRegio(this)">Betis Kn Dpn (4.5%)</button>
+                <button class="btn-regio p-1 rounded col-span-1" data-val="4.5" onclick="toggleRegio(this)">Betis Kn Blk (4.5%)</button>
+                <button class="btn-regio p-1 rounded col-span-1" data-val="4.5" onclick="toggleRegio(this)">Betis Kr Dpn (4.5%)</button>
+                <button class="btn-regio p-1 rounded col-span-1" data-val="4.5" onclick="toggleRegio(this)">Betis Kr Blk (4.5%)</button>
+            </div>
+
+            <!-- Ped Map (Lund Browder approx for ~5 yr old average) -->
+            <div id="ped-map" class="body-map-grid text-[10px] sm:text-xs hidden">
+                <!-- Kepala 18% -->
+                <button class="btn-regio p-2 rounded col-span-2" data-val="9" onclick="toggleRegio(this)">Kepala Dpn (9%)</button>
+                <button class="btn-regio p-2 rounded col-span-2" data-val="9" onclick="toggleRegio(this)">Kepala Blk (9%)</button>
+                
+                <!-- Badan 36% dipisah -->
+                <button class="btn-regio p-1 rounded col-span-2" data-val="9" onclick="toggleRegio(this)">Thorax Dpn (9%)</button>
+                <button class="btn-regio p-1 rounded col-span-2" data-val="9" onclick="toggleRegio(this)">Thorax Blk (9%)</button>
+                <button class="btn-regio p-1 rounded col-span-2" data-val="9" onclick="toggleRegio(this)">Abdomen Dpn (9%)</button>
+                <button class="btn-regio p-1 rounded col-span-2" data-val="9" onclick="toggleRegio(this)">Abdomen Blk (9%)</button>
+                
+                <!-- Lengan 18% -->
+                <button class="btn-regio p-1 rounded col-span-1" data-val="4.5" onclick="toggleRegio(this)">Lgn Kn Dpn (4.5)</button>
+                <button class="btn-regio p-1 rounded col-span-1" data-val="4.5" onclick="toggleRegio(this)">Lgn Kn Blk (4.5)</button>
+                <button class="btn-regio p-1 rounded col-span-1" data-val="4.5" onclick="toggleRegio(this)">Lgn Kr Dpn (4.5)</button>
+                <button class="btn-regio p-1 rounded col-span-1" data-val="4.5" onclick="toggleRegio(this)">Lgn Kr Blk (4.5)</button>
+                
+                <!-- Paha 16% -->
+                <button class="btn-regio p-1 rounded col-span-1" data-val="4" onclick="toggleRegio(this)">Paha Kn Dpn (4%)</button>
+                <button class="btn-regio p-1 rounded col-span-1" data-val="4" onclick="toggleRegio(this)">Paha Kn Blk (4%)</button>
+                <button class="btn-regio p-1 rounded col-span-1" data-val="4" onclick="toggleRegio(this)">Paha Kr Dpn (4%)</button>
+                <button class="btn-regio p-1 rounded col-span-1" data-val="4" onclick="toggleRegio(this)">Paha Kr Blk (4%)</button>
+                
+                <!-- Betis 12% -->
+                <button class="btn-regio p-1 rounded col-span-1" data-val="3" onclick="toggleRegio(this)">Betis Kn Dpn (3%)</button>
+                <button class="btn-regio p-1 rounded col-span-1" data-val="3" onclick="toggleRegio(this)">Betis Kn Blk (3%)</button>
+                <button class="btn-regio p-1 rounded col-span-1" data-val="3" onclick="toggleRegio(this)">Betis Kr Dpn (3%)</button>
+                <button class="btn-regio p-1 rounded col-span-1" data-val="3" onclick="toggleRegio(this)">Betis Kr Blk (3%)</button>
+            </div>
+            
+            <!-- Manual TBSA Override -->
+            <div class="flex items-center gap-2 mt-2">
+                <label class="text-xs font-semibold text-gray-400">Atau input TBSA Manual (%):</label>
+                <input type="number" id="manual-tbsa" step="0.5" class="w-20 input-dark rounded p-1 text-center" placeholder="Auto" oninput="overrideTbsa()">
+            </div>
+            
+            <div id="indication-warning" class="text-xs p-2 rounded mt-2 text-center font-bold hidden border border-red-500 bg-red-900/30 text-red-400">
+                INDIKASI RESUSITASI CAIRAN (TBSA ≥ 15% Dewasa / ≥ 10% Anak)
+            </div>
+        </div>
+
+        <!-- Target Resusitasi (Output 1) -->
+        <div class="bg-gray-800 border border-gray-700 rounded-lg p-4 space-y-3 mt-4">
+            <h3 class="text-md font-bold text-gray-200">Total Kebutuhan Cairan (RL) - 24 Jam</h3>
+            
+            <div class="flex justify-between items-end pb-2 border-b border-gray-700">
+                <span class="text-sm text-gray-400">Total 24 Jam:</span>
+                <span class="text-2xl font-black text-white" id="out-total-vol">0 <span class="text-sm text-gray-400 font-normal">ml</span></span>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <p class="text-[11px] text-gray-400 mb-1">Fase 1: 8 Jam Pertama (1/2 Vol)</p>
+                    <p class="text-xl font-bold text-red-400" id="out-8h-vol">0 <span class="text-xs text-gray-500">ml</span></p>
+                    <p class="text-xs text-gray-300 mt-1 font-mono bg-gray-900 p-1 rounded inline-block" id="out-8h-rate">0 ml/jam</p>
+                </div>
+                <div>
+                    <p class="text-[11px] text-gray-400 mb-1">Fase 2: 16 Jam Sisa (1/2 Vol)</p>
+                    <p class="text-xl font-bold text-blue-400" id="out-16h-vol">0 <span class="text-xs text-gray-500">ml</span></p>
+                    <p class="text-xs text-gray-300 mt-1 font-mono bg-gray-900 p-1 rounded inline-block" id="out-16h-rate">0 ml/jam</p>
+                </div>
+            </div>
+            <div id="maintenance-fluid" class="hidden text-xs text-yellow-500 mt-2 italic border-t border-gray-700 pt-2">
+                *Pasien Anak MEMBUTUHKAN cairan maintenance (D5 1/2NS) tambahan di luar jumlah resusitasi ini (Gunakan rumus Holliday-Segar).
+            </div>
+        </div>
+
+        <!-- Catch-up Tracker (Opsional) -->
+        <div class="space-y-3 pt-2">
+            <h2 class="text-lg font-bold text-white border-b border-gray-700 pb-1">3. Catch-Up Titrasi (Opsional)</h2>
+            <p class="text-[11px] text-gray-400 leading-tight">Digunakan untuk menghitung penyesuaian laju tetesan jika resusitasi sedang berjalan atau pasien datang terlambat (sudah mendapat terapi cairan dari luar).</p>
+            
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 mb-1">Waktu Kejadian (Jam:Mnt)</label>
+                    <input type="time" id="time-injury" class="w-full input-dark rounded-md p-2" onchange="calculateCatchup()">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 mb-1">Waktu Saat Ini</label>
+                    <input type="time" id="time-now" class="w-full input-dark rounded-md p-2" onchange="calculateCatchup()">
+                </div>
+                <div class="col-span-2">
+                    <label class="block text-xs font-semibold text-gray-400 mb-1">Cairan yang SUDAH Diberikan (ml)</label>
+                    <input type="number" id="fluid-in" value="0" class="w-full input-dark rounded-md p-2" oninput="calculateCatchup()">
+                </div>
+            </div>
+            
+            <div class="bg-red-900/20 border border-red-900 rounded p-3 text-center" id="catchup-result-box" style="display: none;">
+                <p class="text-xs text-gray-300 mb-1">Durasi resusitasi berjalan: <span id="out-time-passed" class="font-bold text-white">0 jam</span></p>
+                <p class="text-xs text-gray-400 mb-1">Target Seharusnya Skrg: <span id="out-target-now" class="text-white font-bold">0 ml</span></p>
+                <div id="catchup-action" class="mt-2">
+                    <!-- Action output -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Urine Output Tracker -->
+        <div class="space-y-3 pt-2 pb-4">
+            <h2 class="text-lg font-bold text-white border-b border-gray-700 pb-1">4. Evaluasi Urine Output</h2>
+            <p class="text-[11px] text-gray-400 leading-tight">Urine adalah indikator resusitasi terbaik. Target: Dewasa 0.5 ml/kg/jam, Anak 1 ml/kg/jam, Elektrik 1-1.5 ml/kg/jam (cegah mioglobinuria).</p>
+            
+            <div class="grid grid-cols-3 gap-2">
+                <div class="col-span-1">
+                    <label class="block text-[10px] font-semibold text-gray-400 mb-1">Urine Keluar (ml)</label>
+                    <input type="number" id="uo-vol" class="w-full input-dark rounded p-2 text-center" oninput="calculateUrine()">
+                </div>
+                <div class="col-span-1">
+                    <label class="block text-[10px] font-semibold text-gray-400 mb-1">Durasi Tampung (Jam)</label>
+                    <input type="number" id="uo-time" step="0.5" value="1" class="w-full input-dark rounded p-2 text-center" oninput="calculateUrine()">
+                </div>
+                <div class="col-span-1 flex flex-col justify-end">
+                     <div id="uo-result" class="bg-gray-800 border border-gray-700 rounded p-2 text-center h-[38px] flex items-center justify-center text-sm font-bold text-gray-500">
+                         -
+                     </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    let activeTbsa = 0;
+    let isManualTbsa = false;
+
+    function init() {
+        const now = new Date();
+        const timeNowStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+        document.getElementById('time-now').value = timeNowStr;
+        
+        now.setHours(now.getHours() - 1);
+        const timeInjStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+        document.getElementById('time-injury').value = timeInjStr;
+        
+        calculate();
+    }
+
+    function toggleRegio(btn) {
+        if (isManualTbsa) return; 
+        btn.classList.toggle('active');
+        recalcMapTbsa();
+    }
+
+    function recalcMapTbsa() {
+        activeTbsa = 0;
+        const type = document.getElementById('patient-type').value;
+        const mapId = type === 'adult' ? 'adult-map' : 'ped-map';
+        
+        const btns = document.querySelectorAll(`#${mapId} .btn-regio.active`);
+        btns.forEach(b => {
+            activeTbsa += parseFloat(b.getAttribute('data-val'));
+        });
+        
+        document.getElementById('manual-tbsa').value = '';
+        updateTbsaDisplay(activeTbsa);
+    }
+
+    function overrideTbsa() {
+        const manualVal = parseFloat(document.getElementById('manual-tbsa').value);
+        if (!isNaN(manualVal)) {
+            isManualTbsa = true;
+            activeTbsa = manualVal;
+            document.querySelectorAll('.btn-regio').forEach(b => b.classList.remove('active'));
+        } else {
+            isManualTbsa = false;
+            recalcMapTbsa();
+        }
+        updateTbsaDisplay(activeTbsa);
+    }
+
+    function resetTbsa() {
+        document.querySelectorAll('.btn-regio').forEach(b => b.classList.remove('active'));
+        document.getElementById('manual-tbsa').value = '';
+        isManualTbsa = false;
+        activeTbsa = 0;
+        
+        const type = document.getElementById('patient-type').value;
+        if (type === 'adult') {
+            document.getElementById('adult-map').classList.remove('hidden');
+            document.getElementById('ped-map').classList.add('hidden');
+            document.getElementById('maintenance-fluid').classList.add('hidden');
+        } else {
+            document.getElementById('adult-map').classList.add('hidden');
+            document.getElementById('ped-map').classList.remove('hidden');
+            document.getElementById('maintenance-fluid').classList.remove('hidden');
+        }
+        
+        autoAdjustFactor();
+        updateTbsaDisplay(0);
+    }
+
+    function autoAdjustFactor() {
+        const type = document.getElementById('patient-type').value;
+        const etio = document.getElementById('etiology').value;
+        const factorInput = document.getElementById('formula-factor');
+        const hint = document.getElementById('formula-hint');
+        
+        if (etio === 'electrical') {
+            factorInput.value = 4;
+            hint.innerText = "Target Elektrik: 4 ml/kg/%TBSA (Parkland). Target urin jg lbih tnggi.";
+        } else if (type === 'pediatric') {
+            factorInput.value = 3;
+            hint.innerText = "Target Anak: 3 ml/kg/%TBSA + Jangan lupa Holliday-Segar Maintenance.";
+        } else {
+            factorInput.value = 3;
+            hint.innerText = "Dewasa termal: Rekomendasi standar 3-4 ml. Modified Brooke 2 ml.";
+        }
+    }
+
+    function updateTbsaDisplay(val) {
+        document.getElementById('total-tbsa-display').innerText = val.toFixed(1) + '%';
+        
+        const type = document.getElementById('patient-type').value;
+        const isIndicated = (type === 'adult' && val >= 15) || (type === 'pediatric' && val >= 10);
+        
+        const warnBox = document.getElementById('indication-warning');
+        if (isIndicated) {
+            warnBox.classList.remove('hidden');
+        } else {
+            warnBox.classList.add('hidden');
+        }
+        
+        calculate();
+    }
+
+    function calculate() {
+        const weight = parseFloat(document.getElementById('weight').value) || 0;
+        const factor = parseFloat(document.getElementById('formula-factor').value) || 3;
+        
+        if (weight <= 0 || activeTbsa <= 0) {
+            document.getElementById('out-total-vol').innerHTML = `0 <span class="text-sm text-gray-400 font-normal">ml</span>`;
+            document.getElementById('out-8h-vol').innerHTML = `0 <span class="text-xs text-gray-500">ml</span>`;
+            document.getElementById('out-16h-vol').innerHTML = `0 <span class="text-xs text-gray-500">ml</span>`;
+            document.getElementById('out-8h-rate').innerText = `0 ml/jam`;
+            document.getElementById('out-16h-rate').innerText = `0 ml/jam`;
+            document.getElementById('catchup-result-box').style.display = 'none';
+            return;
+        }
+
+        const totalVol = factor * weight * activeTbsa;
+        const halfVol = totalVol / 2;
+
+        document.getElementById('out-total-vol').innerHTML = `${Math.round(totalVol)} <span class="text-sm text-gray-400 font-normal">ml</span>`;
+        
+        document.getElementById('out-8h-vol').innerHTML = `${Math.round(halfVol)} <span class="text-xs text-gray-500">ml</span>`;
+        document.getElementById('out-8h-rate').innerText = `${Math.round(halfVol / 8)} ml/jam (dlm 8j prtma)`;
+        
+        document.getElementById('out-16h-vol').innerHTML = `${Math.round(halfVol)} <span class="text-xs text-gray-500">ml</span>`;
+        document.getElementById('out-16h-rate').innerText = `${Math.round(halfVol / 16)} ml/jam (dlm 16j sisa)`;
+        
+        calculateCatchup(totalVol, halfVol);
+        calculateUrine();
+    }
+
+    function calculateCatchup(totalVolParam, halfVolParam) {
+        const timeInj = document.getElementById('time-injury').value;
+        const timeNow = document.getElementById('time-now').value;
+        const fluidIn = parseFloat(document.getElementById('fluid-in').value) || 0;
+        const box = document.getElementById('catchup-result-box');
+        
+        if (!timeInj || !timeNow || activeTbsa <= 0) {
+            box.style.display = 'none';
+            return;
+        }
+
+        const [injH, injM] = timeInj.split(':').map(Number);
+        const [nowH, nowM] = timeNow.split(':').map(Number);
+        
+        let injDate = new Date(); injDate.setHours(injH, injM, 0, 0);
+        let nowDate = new Date(); nowDate.setHours(nowH, nowM, 0, 0);
+        
+        if (nowDate < injDate) {
+            nowDate.setDate(nowDate.getDate() + 1);
+        }
+        
+        const diffMs = nowDate - injDate;
+        const diffHrs = diffMs / (1000 * 60 * 60);
+        
+        if (diffHrs < 0 || diffHrs > 24) {
+            box.style.display = 'none';
+            return;
+        }
+        
+        box.style.display = 'block';
+        document.getElementById('out-time-passed').innerText = diffHrs.toFixed(1) + " jam";
+        
+        const weight = parseFloat(document.getElementById('weight').value) || 0;
+        const factor = parseFloat(document.getElementById('formula-factor').value) || 3;
+        const totalVol = factor * weight * activeTbsa;
+        const halfVol = totalVol / 2;
+        const rate8h = halfVol / 8;
+        const rate16h = halfVol / 16;
+        
+        let targetNow = 0;
+        let actionHtml = '';
+
+        if (diffHrs <= 8) {
+            targetNow = diffHrs * rate8h;
+            let deficit = targetNow - fluidIn;
+            document.getElementById('out-target-now').innerText = Math.round(targetNow) + " ml (Fase 1)";
+            
+            if (deficit > 0) {
+                let timeRem8h = 8 - diffHrs;
+                let newRate = (halfVol - fluidIn) / timeRem8h;
+                actionHtml = `<div class="bg-red-800/80 text-white p-2 rounded text-sm font-bold border border-red-600">
+                    Defisit ${Math.round(deficit)} ml!<br>
+                    Ubah tetesan sisa fase 1 mjd: ${Math.round(newRate)} ml/jam (dlm ${timeRem8h.toFixed(1)} jam ke depan)
+                </div>`;
+            } else {
+                actionHtml = `<div class="bg-green-800/80 text-white p-2 rounded text-sm font-bold border border-green-600">
+                    Cairan cukup/surplus (+${Math.round(Math.abs(deficit))} ml).<br>Bila urin adekuat, tetesan dpt diturunkan.
+                </div>`;
+            }
+        } else {
+            targetNow = halfVol + ((diffHrs - 8) * rate16h);
+            let deficit = targetNow - fluidIn;
+            document.getElementById('out-target-now').innerText = Math.round(targetNow) + " ml (Fase 2)";
+            
+            if (deficit > 0) {
+                let timeRem16h = 24 - diffHrs;
+                let newRate = (totalVol - fluidIn) / timeRem16h;
+                actionHtml = `<div class="bg-orange-800/80 text-white p-2 rounded text-sm font-bold border border-orange-600">
+                    Defisit Fase 2: ${Math.round(deficit)} ml.<br>
+                    Ubah tetesan mjd: ${Math.round(newRate)} ml/jam (dlm ${timeRem16h.toFixed(1)} jam ke depan)
+                </div>`;
+            } else {
+                actionHtml = `<div class="bg-green-800/80 text-white p-2 rounded text-sm font-bold border border-green-600">
+                    Target tercapai.<br>Lanjutkan cairan maintenance sesuai status klinis/urin.
+                </div>`;
+            }
+        }
+        
+        document.getElementById('catchup-action').innerHTML = actionHtml;
+    }
+
+    function calculateUrine() {
+        const uoVol = parseFloat(document.getElementById('uo-vol').value);
+        const uoTime = parseFloat(document.getElementById('uo-time').value) || 1;
+        const weight = parseFloat(document.getElementById('weight').value) || 0;
+        const resBox = document.getElementById('uo-result');
+        
+        if (!uoVol || weight <= 0) {
+            resBox.innerText = "-";
+            resBox.className = "bg-gray-800 border border-gray-700 rounded p-2 text-center h-[38px] flex items-center justify-center text-sm font-bold text-gray-500";
+            return;
+        }
+        
+        const uoKgHr = uoVol / weight / uoTime;
+        resBox.innerText = uoKgHr.toFixed(2) + " cc/kg/jam";
+        
+        const type = document.getElementById('patient-type').value;
+        const etio = document.getElementById('etiology').value;
+        
+        let min = 0.5; 
+        if (type === 'pediatric') min = 1.0;
+        if (etio === 'electrical') min = 1.0; 
+
+        if (uoKgHr < min) {
+            resBox.className = "bg-red-900 border border-red-500 text-red-200 rounded p-2 text-center h-[38px] flex items-center justify-center text-sm font-bold";
+        } else if (uoKgHr > 2.0) { 
+            resBox.className = "bg-yellow-800 border border-yellow-500 text-yellow-200 rounded p-2 text-center h-[38px] flex items-center justify-center text-sm font-bold";
+        } else {
+            resBox.className = "bg-green-900 border border-green-500 text-green-200 rounded p-2 text-center h-[38px] flex items-center justify-center text-sm font-bold";
+        }
+    }
+    
+    document.getElementById('patient-type').addEventListener('change', autoAdjustFactor);
+    document.getElementById('etiology').addEventListener('change', autoAdjustFactor);
+
+    window.onload = init;
+</script>
+
+</body>
+</html>

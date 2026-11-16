@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ISS calculator — AIS by region with examples</title>
+<style>
+:root{
+  --bg:#F6F4EE; --card:#FFFFFF; --ink:#1E2A2F; --muted:#6A757A; --line:#E4E0D6;
+  --teal:#1F5F63; --teal-soft:#E4EFEF;
+  --a0:#EEEBE3; --a1:#8FB39C; --a2:#D6BC5C; --a3:#E29A4B; --a4:#D0643F; --a5:#A5373A; --a6:#3B1D2A;
+  --warn-bg:#FBEFD9; --warn-ink:#7A4A0C; --ct:#5B4E8C; --ct-soft:#ECE9F6; --bed:#2F6B3F; --bed-soft:#E3F0E6;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#15191B; --card:#1E2427; --ink:#E7ECEC; --muted:#98A3A7; --line:#2E363A;
+    --teal:#6FB3B6; --teal-soft:#20373A; --a0:#2A3134; --warn-bg:#3A2E18; --warn-ink:#F0C98A;
+    --ct:#B7A9F0; --ct-soft:#2C2842; --bed:#8FD19E; --bed-soft:#1F3325;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#15191B; --card:#1E2427; --ink:#E7ECEC; --muted:#98A3A7; --line:#2E363A;
+  --teal:#6FB3B6; --teal-soft:#20373A; --a0:#2A3134; --warn-bg:#3A2E18; --warn-ink:#F0C98A;
+  --ct:#B7A9F0; --ct-soft:#2C2842; --bed:#8FD19E; --bed-soft:#1F3325;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  font-size:14px;line-height:1.4;-webkit-tap-highlight-color:transparent}
+.num{font-variant-numeric:tabular-nums}
+.app{max-width:1320px;margin:0 auto;padding:14px;display:grid;grid-template-columns:1fr 330px;gap:14px;align-items:start}
+header.top{grid-column:1/-1;display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+header.top h1{font-size:19px;font-weight:650;letter-spacing:-.01em}
+header.top p{font-size:12.5px;color:var(--muted);max-width:70ch}
+.legend{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.btn{font:inherit;font-size:12.5px;border:1px solid var(--line);background:var(--card);color:var(--ink);
+  border-radius:8px;padding:6px 11px;cursor:pointer}
+.btn:hover{border-color:var(--teal)}
+button:focus-visible,summary:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+
+.regions{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
+.region{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:9px}
+.rhead{display:flex;align-items:center;gap:8px}
+.rhead .ico{font-size:18px;line-height:1}
+.rhead h2{font-size:14.5px;font-weight:620;flex:1}
+.rlabel{font-size:12px;color:var(--muted)}
+.badge{min-width:34px;height:26px;border-radius:7px;display:grid;place-items:center;font-weight:700;font-size:13px;background:var(--a0);color:var(--muted)}
+[data-a="1"]{--sev:var(--a1);--sevink:#fff}
+[data-a="2"]{--sev:var(--a2);--sevink:#2b2507}
+[data-a="3"]{--sev:var(--a3);--sevink:#fff}
+[data-a="4"]{--sev:var(--a4);--sevink:#fff}
+[data-a="5"]{--sev:var(--a5);--sevink:#fff}
+[data-a="6"]{--sev:var(--a6);--sevink:#fff}
+.badge[data-a]:not([data-a="0"]){background:var(--sev);color:var(--sevink)}
+.rnote{font-size:11.5px;color:var(--muted)}
+
+.scale{display:grid;grid-template-columns:repeat(7,1fr);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.scale button{font:inherit;background:transparent;border:0;border-right:1px solid var(--line);color:var(--ink);
+  padding:5px 0 4px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:1px}
+.scale button:last-child{border-right:0}
+.scale b{font-size:13.5px}
+.scale small{font-size:9.5px;color:var(--muted);letter-spacing:.01em}
+.scale button[aria-pressed="true"]{background:var(--sev,var(--teal));color:var(--sevink,#fff)}
+.scale button[aria-pressed="true"] small{color:inherit;opacity:.9}
+.scale button[data-a="0"][aria-pressed="true"]{background:var(--a0);color:var(--ink)}
+
+details.ex{border-top:1px dashed var(--line);padding-top:7px;min-width:0}
+.region,.lvl{min-width:0}
+details.ex summary{cursor:pointer;font-size:12.5px;font-weight:600;list-style:none;display:flex;justify-content:space-between;align-items:center}
+details.ex summary::-webkit-details-marker{display:none}
+details.ex summary::after{content:"Show";font-weight:500;color:var(--teal);font-size:12px}
+details.ex[open] summary::after{content:"Hide"}
+.lvl{margin-top:8px}
+.lvl h3{font-size:11.5px;font-weight:650;color:var(--muted);margin-bottom:4px;display:flex;align-items:center;gap:6px}
+.lvl h3 i{width:9px;height:9px;border-radius:3px;background:var(--sev);display:inline-block}
+.row{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:9px;padding:6px 8px;margin-bottom:4px;cursor:pointer;background:transparent;width:100%;text-align:left;font:inherit;color:var(--ink)}
+.row .lbl{flex:1;min-width:0;font-size:12.8px;overflow-wrap:anywhere}
+.row .sub{display:block;font-size:11px;color:var(--muted)}
+.row .ref{font-size:10.5px;color:var(--muted);white-space:nowrap}
+.tag{font-size:10px;font-weight:650;border-radius:5px;padding:1px 5px;white-space:nowrap}
+.tag.bed{background:var(--bed-soft);color:var(--bed)}
+.tag.ct{background:var(--ct-soft);color:var(--ct)}
+.pills{display:flex;gap:4px}
+.pill{font:inherit;font-size:12px;font-weight:650;min-width:30px;border-radius:6px;border:1px solid var(--line);background:var(--a0);color:var(--muted);padding:2px 5px;cursor:pointer}
+.row[aria-pressed="true"],.row.on{border-color:var(--teal);background:var(--teal-soft)}
+.pill[aria-pressed="true"]{background:var(--teal);color:#fff;border-color:var(--teal)}
+.rsrc{font-size:10.5px;color:var(--muted)}
+
+.phys{grid-column:1/-1}
+.pgrid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field label{font-size:12px;font-weight:600}
+.field input{font:inherit;font-size:16px;width:100%;border:1px solid var(--line);border-radius:8px;padding:7px 9px;background:transparent;color:var(--ink)}
+.field input:focus-visible{outline:2px solid var(--teal);outline-offset:1px}
+.code{font-size:11px;color:var(--muted)}
+.code b{color:var(--ink)}
+.mech{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.mech button{font:inherit;font-size:13px;border:0;background:transparent;color:var(--ink);padding:8px 4px;cursor:pointer}
+.mech button+button{border-left:1px solid var(--line)}
+.mech button[aria-pressed="true"]{background:var(--teal);color:#fff}
+.pout{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);border-top:1px dashed var(--line);padding-top:8px}
+.pout b{color:var(--ink);font-size:14px}
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.metric{border:1px solid var(--line);border-radius:10px;padding:7px 9px}
+.metric span{display:block;font-size:11px;color:var(--muted)}
+.metric b{font-size:20px}
+.interp h4{font-size:13px;font-weight:650;margin-bottom:6px}
+.interp p{font-size:12.5px;margin-bottom:6px}
+.interp ul{padding-left:17px;font-size:12.5px}
+.interp li{margin-bottom:4px}
+.tier{display:inline-block;font-size:11.5px;font-weight:650;border-radius:999px;padding:2px 9px;margin-bottom:8px}
+.fine{font-size:11px;color:var(--muted);margin-top:6px}
+@media (max-width:900px){ .pgrid{grid-template-columns:repeat(2,minmax(0,1fr))} .pgrid .field.wide{grid-column:1/-1} }
+aside.result{position:sticky;top:calc(env(safe-area-inset-top,0px) + 14px);display:flex;flex-direction:column;gap:10px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
+.score{display:flex;align-items:flex-end;gap:10px}
+.score .big{font-size:64px;font-weight:720;line-height:.9;letter-spacing:-.03em}
+.score .unit{font-size:13px;color:var(--muted);padding-bottom:6px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.band{font-size:12.5px;font-weight:620;padding:3px 10px;border-radius:999px;background:var(--a0);color:var(--muted)}
+.qual{font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:999px}
+.formula{margin-top:12px;display:flex;flex-direction:column}
+.frow{display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:4px 0;border-bottom:1px solid var(--line)}
+.frow:last-child{border-bottom:0}
+.frow .r{color:var(--muted)}
+.frow.dim{opacity:.5}
+.override{margin-top:10px;font-size:12.5px;font-weight:600;color:#fff;background:var(--a6);border-radius:8px;padding:7px 9px;display:none}
+.warns{display:flex;flex-direction:column;gap:6px}
+.warn{font-size:12px;background:var(--warn-bg);color:var(--warn-ink);border-radius:9px;padding:7px 9px}
+.actions{display:flex;gap:8px}.actions .btn{flex:1}
+details.src{font-size:11.5px;color:var(--muted)}
+details.src summary{cursor:pointer;font-weight:600;color:var(--ink)}
+details.src p{margin-top:6px}
+details.src ol{padding-left:18px;margin-top:6px}
+details.src li{margin-top:4px;word-break:break-word}
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 18px);transform:translateX(-50%);
+  background:var(--ink);color:var(--bg);font-size:13px;padding:8px 14px;border-radius:9px;opacity:0;pointer-events:none;transition:opacity .2s}
+.toast.show{opacity:1}
+textarea.copybox{position:absolute;left:-9999px;top:0}
+
+@media (max-width:1020px){
+  .app{grid-template-columns:1fr}
+  header.top{order:-3}
+  aside.result{display:contents}
+  aside.result .panel.main{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;order:-2;
+    padding:10px 12px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;box-shadow:0 6px 14px -10px rgba(0,0,0,.35)}
+  .warns{order:-1}
+  aside.result .panel.side{order:2}
+  .score .big{font-size:42px}
+  .formula{margin-top:0;flex:1;min-width:190px}
+  .frow{padding:2px 0;font-size:12px}
+}
+@media (max-width:680px){ .regions{grid-template-columns:1fr} .scale small{font-size:8.5px} }
+@media (prefers-reduced-motion:reduce){ *{transition:none!important} }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div>
+      <h1>ISS calculator — AIS by region</h1>
+      <p>Set each region's worst AIS on the 0–6 scale, or tap example injuries to set it for you. The three highest regions are squared and summed; any AIS 6 makes ISS 75.</p>
+      <div class="legend"><span class="tag bed">Bedside</span><span class="rnote">exam, X-ray or eFAST</span><span class="tag ct">CT/OR</span><span class="rnote">needs CT, operation or autopsy</span></div>
+    </div>
+    <button class="btn" id="resetBtn" type="button">Reset</button>
+  </header>
+
+  <main class="regions" id="regionsWrap">
+    <section class="region phys" aria-label="Physiology and patient">
+      <div class="rhead"><span class="ico" aria-hidden="true">🫀</span><h2>Physiology and patient (for RTS and TRISS)</h2></div>
+      <p class="rnote">Use first ED values. If the patient is intubated or sedated, use the last pre-intubation GCS and RR if known.</p>
+      <div class="pgrid">
+        <div class="field"><label for="age">Age (years)</label><input id="age" type="number" inputmode="numeric" min="0" max="120" placeholder="e.g. 34"><span class="code" id="c-age">Age index —</span></div>
+        <div class="field wide"><label>Mechanism</label><div class="mech" role="group" aria-label="Mechanism"><button type="button" data-m="blunt" aria-pressed="true">Blunt</button><button type="button" data-m="pen" aria-pressed="false">Penetrating</button></div><span class="code" id="c-mech"></span></div>
+        <div class="field"><label for="gcs">GCS (3–15)</label><input id="gcs" type="number" inputmode="numeric" min="3" max="15" placeholder="3–15"><span class="code" id="c-gcs">Code —</span></div>
+        <div class="field"><label for="sbp">SBP (mmHg)</label><input id="sbp" type="number" inputmode="numeric" min="0" max="300" placeholder="e.g. 90"><span class="code" id="c-sbp">Code —</span></div>
+        <div class="field"><label for="rr">RR (/min)</label><input id="rr" type="number" inputmode="numeric" min="0" max="80" placeholder="e.g. 22"><span class="code" id="c-rr">Code —</span></div>
+      </div>
+      <div class="pout"><span>RTS <b class="num" id="o-rts">—</b> <small>(0–7.84)</small></span><span>Triage-RTS <b class="num" id="o-trts">—</b> <small>(0–12, sum of codes)</small></span><span>TRISS Ps <b class="num" id="o-ps">—</b></span></div>
+      <p class="rsrc">Sources: [17] [18] [2]</p>
+    </section>
+    <div id="regions" style="display:contents"></div>
+  </main>
+
+  <aside class="result">
+    <div class="panel main">
+      <div>
+        <div class="score"><span class="big num" id="iss">0</span><span class="unit">ISS</span></div>
+        <div class="chips"><span class="band" id="band">No injuries entered</span><span class="qual" id="qual"></span></div>
+      </div>
+      <div class="formula num" id="formula"></div>
+      <div class="override" id="override">AIS 6 recorded — ISS set to 75</div>
+      <div class="metrics num"><div class="metric"><span>RTS</span><b id="m-rts">—</b></div><div class="metric"><span>TRISS survival</span><b id="m-ps">—</b></div></div>
+    </div>
+    <div class="warns" id="warns"></div>
+    <div class="panel side interp" id="interp"></div>
+    <div class="panel side"><div class="actions"><button class="btn" id="copyBtn" type="button">Copy summary</button></div></div>
+    <div class="panel side">
+      <details class="src">
+        <summary>Sources (Vancouver)</summary>
+        <p>Examples are illustrative, not the full AAAM AIS dictionary. AIS versions differ between sources (AIS-90 vs AIS 2005/08); ranged items reflect the original tables.</p>
+        <ol id="refs"></ol>
+      </details>
+    </div>
+  </aside>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<textarea class="copybox" id="copybox" aria-hidden="true" tabindex="-1"></textarea>
+
+<script>
+const REFS = [
+ /*1*/ "Baker SP, O'Neill B, Haddon W Jr, Long WB. The injury severity score: a method for describing patients with multiple injuries and evaluating emergency care. J Trauma. 1974;14(3):187–96.",
+ /*2*/ "Copes WS, Sacco WJ, Champion HR, Bain LW. Progress in characterizing anatomic injury. Proc 33rd Annu Conf Assoc Adv Automot Med. 1989:205–18. (AIS labels 1 minor – 6 unsurvivable; as reproduced in: Injury severity scoring [Internet]. surgicalcriticalcare.net; 2001.)",
+ /*3*/ "Thorax injury biomechanics. In: Yoganandan N, Nahum AM, Melvin JW, editors. Accidental injury: biomechanics and prevention. 3rd ed. New York: Springer; 2015. Table 13.1, Skeletal and soft tissue injuries to the thorax ranked by AIS.",
+ /*4*/ "Moore EE, et al. AAST organ injury scaling I–VI (J Trauma 1989;29:1664; 1990;30:1427; 1992;33:337; 1994;36:299; 1995;38:323) with AIS-90 severities, as compiled in: Injury severity scoring, Appendix 1 [Internet]. surgicalcriticalcare.net; 2001 [cited 2026 Sep 26]. Available from: https://surgicalcriticalcare.net/injury_severity_scoring.pdf",
+ /*5*/ "Kozar RA, Crandall M, Shanmuganathan K, Zarzaur BL, Coburn M, Cribari C, et al. Organ injury scaling 2018 update: spleen, liver, and kidney. J Trauma Acute Care Surg. 2018;85(6):1119–22.",
+ /*6*/ "Clark DE, Black AW, Skavdahl DH, Hallagan LD. Open-access programs for injury categorization using ICD-9 or ICD-10. Inj Epidemiol. 2018;5:11. (icdpicr v1.0.1 ICD-10-CM → AIS map, MIT licence; estimate only.)",
+ /*7*/ "Urban JE, Whitlow CT, Edgerton CA, Powers AK, Maldjian JA, Stitzel JD. Motor vehicle crash-related subdural hematoma from real-world head impact data. J Neurotrauma. 2012;29(18):2774–81.",
+ /*8*/ "Trauma News. 15 things trauma physicians should know about AIS coding [Internet]. 2018 [cited 2026 Sep 26]. Available from: https://trauma-news.com/2018/08/15-things-trauma-physicians-should-know-about-ais-coding/",
+ /*9*/ "Understanding the Abbreviated Injury Scale: AIS coding training slides [Internet]. Scribd; [cited 2026 Sep 26]. Available from: https://www.scribd.com/document/379537307/Coding (secondary source).",
+ /*10*/ "Agency for Clinical Innovation. Injury scoring [Internet]. NSW Health; [cited 2026 Sep 26]. Available from: https://aci.health.nsw.gov.au/networks/trauma/data/injury-scoring",
+ /*11*/ "Regenstrief Institute. LOINC 75890-4: Abbreviated Injury Scale predot code AAAM [Internet]. [cited 2026 Sep 26]. Available from: https://cdn.loinc.org/75890-4",
+ /*12*/ "Wikipedia contributors. Abbreviated Injury Scale [Internet]. [cited 2026 Sep 26]. Available from: https://en.wikipedia.org/wiki/Abbreviated_Injury_Scale (tertiary source citing AAAM).",
+ /*13*/ "Evaluating the association between time to skin grafting for truncal burn patients and complications: a comparative cohort study using the National Trauma Data Bank. Int J Surg. 2024. doi:10.1097/JS9.0000000000001461",
+ /*14*/ "MetricGate. Abbreviated Injury Scale (AIS) [Internet]. 2026 [cited 2026 Sep 26]. Available from: https://metricgate.com/docs/abbreviated-injury-scale-ais/ (secondary source).",
+ /*15*/ "Hsu SY, Wu SC, Rau CS, Hsieh TM, Liu HT, Huang CY, et al. Impact of adapting the Abbreviated Injury Scale (AIS)-2005 from AIS-1998 on injury severity scores and clinical outcome. Int J Environ Res Public Health. 2019;16(24):5033.",
+ /*16*/ "Omni Calculator. Injury Severity Score calculator [Internet]. [cited 2026 Sep 26]. Available from: https://www.omnicalculator.com/health/iss (severity bands after Bolorunduro et al.).",
+ /*17*/ "Champion HR, Sacco WJ, Copes WS, Gann DS, Gennarelli TA, Flanagan ME. A revision of the Trauma Score. J Trauma. 1989;29(5):623–9. (RTS coded values and weights as reproduced in ref 2.)",
+ /*18*/ "Boyd CR, Tolson MA, Copes WS. Evaluating trauma care: the TRISS method. Trauma Score and the Injury Severity Score. J Trauma. 1987;27(4):370–8. (MTOS coefficients as reproduced in ref 2.)",
+ /*19*/ "Evaluation of probability of survival using Trauma and Injury Severity Score method in severe neurotrauma patients [Internet]. PMC3772286; [cited 2026 Sep 26]. Available from: https://pmc.ncbi.nlm.nih.gov/articles/PMC3772286/ (unexpected deaths at Ps >0.5; coefficient revisions 1995 and 2010)."
+];
+
+const LABELS = ["None","Minor","Moderate","Serious","Severe","Critical","Maximal"];
+const LABELS_LONG = ["No injury","Minor","Moderate","Serious","Severe","Critical","Maximal (unsurvivable)"];
+
+/* a: AIS number or [low,high]; b: true = bedside, false = CT/OR; r: reference numbers; cap: ungraded floor; grp: mutually exclusive group */
+const REGIONS = [
+ {id:"head", name:"Head or neck", ico:"🧠", src:[6,7,8,9],
+  note:"Includes brain, skull, cervical spine and cord. Intracranial bleeds need CT.",
+  ex:[
+   {a:1,t:"Concussion as the only documented brain diagnosis",b:true,r:[8]},
+   {a:2,t:"Skull vault fracture, closed",s:"Palpable step or skull X-ray",b:true,r:[6]},
+   {a:2,t:"Cervical vertebral fracture, no cord deficit",s:"C-spine X-ray",b:true,r:[6]},
+   {a:3,t:"Basal skull fracture",s:"Battle sign, raccoon eyes, CSF leak",b:true,r:[6]},
+   {a:3,t:"Subdural hematoma, tiny (<0.6 cm)",b:false,r:[7]},
+   {a:4,t:"Subdural hematoma, 0.6–1 cm",s:"Inferred from the 3→5 grading",b:false,r:[7]},
+   {a:5,t:"Subdural hematoma, large (>1 cm) or bilateral",b:false,r:[7]},
+   {a:6,t:"Brainstem laceration, crush or transection",b:false,r:[9]},
+   {a:6,t:"Complete cord injury at C3 or above",b:false,r:[9]}
+  ]},
+ {id:"face", name:"Face", ico:"👁️", src:[6,10],
+  note:"Facial skeleton, eyes, ears, nose, mouth. Rarely above AIS 3.",
+  ex:[
+   {a:1,t:"Nasal fracture",b:true,r:[10,6]},
+   {a:1,t:"Mandible body fracture",b:true,r:[6]},
+   {a:2,t:"Zygoma or maxilla fracture",b:true,r:[6]},
+   {a:2,t:"Le Fort I, II or III",s:"Levels not separated in source; treat as floor",b:true,r:[6],cap:true},
+   {a:2,t:"Globe laceration with prolapse",b:true,r:[6]}
+  ]},
+ {id:"chest", name:"Chest", ico:"🫁", src:[3,4,6],
+  note:"Includes thoracic spine and diaphragm. Hemothorax is scored under thoracic vessels in AAST.",
+  ex:[
+   {a:1,t:"1 rib fracture",b:true,r:[3]},
+   {a:1,t:"Chest wall contusion",b:true,r:[4]},
+   {a:2,t:"2 rib fractures",b:true,r:[3]},
+   {a:2,t:"Sternal fracture",b:true,r:[3]},
+   {a:2,t:"Thoracic vertebral fracture",b:true,r:[6]},
+   {a:3,t:"3 or more rib fractures",b:true,r:[3]},
+   {a:3,t:"Unilateral flail chest, 3–5 flail ribs",b:true,r:[3]},
+   {a:3,t:"Pneumothorax, simple",s:"CXR or absent lung sliding",b:true,r:[4]},
+   {a:3,t:"Hemothorax or hemopneumothorax",s:"CXR or eFAST",b:true,r:[6]},
+   {a:3,t:"Lung contusion",b:false,r:[3]},
+   {a:3,t:"Blunt cardiac injury, minor ECG changes",b:true,r:[4]},
+   {a:3,t:"Diaphragm laceration",b:false,r:[4]},
+   {a:4,t:"Unilateral flail chest, >5 flail ribs",b:true,r:[3]},
+   {a:4,t:"Bilateral lung laceration",b:false,r:[3]},
+   {a:4,t:"Minor aortic laceration",b:false,r:[3]},
+   {a:4,t:"Major heart contusion",b:false,r:[3]},
+   {a:5,t:"Bilateral flail chest",b:true,r:[3]},
+   {a:5,t:"Tension pneumothorax",b:true,r:[3]},
+   {a:5,t:"Major aortic laceration",b:false,r:[3]},
+   {a:5,t:"Left ventricular perforation",b:false,r:[4]},
+   {a:6,t:"Aortic laceration with bleeding beyond mediastinum",b:false,r:[3]},
+   {a:6,t:"Blunt avulsion of the heart",b:false,r:[4]}
+  ]},
+ {id:"abd", name:"Abdomen or pelvic contents", ico:"🩻", src:[4,5,6],
+  note:"Includes lumbar spine. Organ grade = AAST grade from CT or operation.",
+  ex:[
+   {a:[1,2],t:"FAST positive, organ unknown",b:true,r:[6],cap:true},
+   {a:2,t:"Lumbar vertebral fracture",b:true,r:[6]},
+   {a:2,t:"Spleen, liver or kidney injury, grade I–II",s:"Hematoma <50% surface, laceration ≤3 cm (kidney ≤1 cm)",b:false,r:[5]},
+   {a:2,t:"Small bowel or colon contusion, partial thickness",b:false,r:[4]},
+   {a:3,t:"Spleen, liver or kidney injury, grade III",s:"Laceration >3 cm (kidney >1 cm), hematoma >50%",b:false,r:[5]},
+   {a:3,t:"Small bowel or colon laceration, no transection",b:false,r:[4]},
+   {a:3,t:"Pancreas distal transection or duct injury",b:false,r:[4]},
+   {a:4,t:"Spleen, liver or kidney injury, grade IV",s:"Segmental/hilar vessels, active bleeding into peritoneum (liver)",b:false,r:[5]},
+   {a:4,t:"Small bowel or colon transection",b:false,r:[4]},
+   {a:4,t:"Duodenal disruption <50% circumference",b:false,r:[4]},
+   {a:4,t:"Infrarenal aorta injury",b:false,r:[4]},
+   {a:5,t:"Spleen, liver or kidney injury, grade V",s:"Shattered, hilar devascularization, juxtahepatic venous",b:false,r:[5]},
+   {a:5,t:"Pancreatic head, massive disruption",b:false,r:[4]},
+   {a:5,t:"Retrohepatic or suprahepatic IVC injury",b:false,r:[4]},
+   {a:6,t:"Hepatic avulsion",b:false,r:[4]}
+  ]},
+ {id:"ext", name:"Extremities or pelvic girdle", ico:"🦴", src:[6,11,12,14,15,4],
+  note:"Bony pelvis, limbs, amputations. AIS 2005 downgraded some long-bone fractures from 3 to 2.",
+  ex:[
+   {a:1,t:"Minor sprain",b:true,r:[14]},
+   {a:2,t:"Humerus shaft fracture, closed",b:true,r:[6,15]},
+   {a:2,t:"Tibia, radius or ulna shaft fracture, closed",b:true,r:[6]},
+   {a:2,t:"Pubic ramus fracture",b:true,r:[6]},
+   {a:3,t:"Femoral shaft fracture",b:true,r:[11]},
+   {a:3,t:"Femoral neck fracture",b:true,r:[6]},
+   {a:3,t:"Humerus fracture, open",b:true,r:[12]},
+   {a:3,t:"Traumatic amputation, shoulder or elbow",b:true,r:[6]},
+   {a:[3,4],t:"Femoral or superficial femoral artery injury",s:"Hard signs",b:true,r:[4]},
+   {a:4,t:"Pelvic ring disruption, multiple fractures",s:"Stable vs unstable not separated in source",b:true,r:[6]},
+   {a:4,t:"Traumatic amputation, knee or hip",b:true,r:[6]}
+  ]},
+ {id:"surf", name:"External", ico:"🩹", src:[10,12,13,6],
+  note:"Skin wounds and burns count here wherever they are on the body.",
+  ex:[
+   {a:1,t:"Abrasions or superficial lacerations",b:true,r:[12,6]},
+   {a:3,t:"Burns 2nd/3rd degree, 20–29% TBSA",b:true,r:[13],grp:"burn"},
+   {a:4,t:"Burns 2nd/3rd degree, 30–39% TBSA",b:true,r:[13],grp:"burn"},
+   {a:5,t:"Burns 2nd/3rd degree, 40–89% TBSA",b:true,r:[13],grp:"burn"}
+  ]}
+];
+
+/* physiology */
+const phys = {age:null, gcs:null, sbp:null, rr:null, mech:"blunt"};
+const COEF = { blunt:{b0:-0.4499,b1:0.8085,b2:-0.0835,b3:-1.7430}, pen:{b0:-2.5355,b1:0.9934,b2:-0.0651,b3:-1.1360} };
+const gcsCode = g => g>=13?4 : g>=9?3 : g>=6?2 : g>=4?1 : 0;
+const sbpCode = v => v>89?4 : v>=76?3 : v>=50?2 : v>=1?1 : 0;
+const rrCode  = v => v>29?3 : v>=10?4 : v>=6?2 : v>=1?1 : 0;
+function physCalc(iss, override){
+  const {age,gcs,sbp,rr,mech} = phys;
+  const out = {};
+  if (gcs!=null){ out.cg = gcsCode(gcs); }
+  if (sbp!=null){ out.cs = sbpCode(sbp); }
+  if (rr!=null){ out.cr = rrCode(rr); }
+  if (out.cg!=null && out.cs!=null && out.cr!=null){
+    out.rts = 0.9368*out.cg + 0.7326*out.cs + 0.2908*out.cr;
+    out.trts = out.cg + out.cs + out.cr;
+  }
+  if (age!=null){ out.ageIdx = age>=55 ? 1 : 0; }
+  if (out.rts!=null && age!=null && (iss>0 || override)){
+    out.coefSet = (age<15) ? "blunt" : mech;
+    const c = COEF[out.coefSet];
+    const b = c.b0 + c.b1*out.rts + c.b2*iss + c.b3*out.ageIdx;
+    out.ps = 1/(1+Math.exp(-b));
+  }
+  return out;
+}
+function readNum(id, lo, hi){ const v = document.getElementById(id).value.trim(); if (v==="") return null; const n = Number(v); if (!isFinite(n)) return null; return Math.min(hi, Math.max(lo, n)); }
+function bindPhys(){
+  [["age",0,120],["gcs",3,15],["sbp",0,300],["rr",0,80]].forEach(([id,lo,hi]) => {
+    document.getElementById(id).addEventListener("input", () => { phys[id] = readNum(id,lo,hi); update(); });
+  });
+  document.querySelectorAll(".mech button").forEach(b => b.addEventListener("click", () => { phys.mech = b.dataset.m; update(); }));
+}
+
+/* state */
+const pick = {}, manual = {};
+function clearAll(){ REGIONS.forEach(r => { pick[r.id] = r.ex.map(() => 0); manual[r.id] = 0; }); }
+clearAll();
+const isRange = e => Array.isArray(e.a);
+const low = e => isRange(e) ? e.a[0] : e.a;
+function regionAIS(r){ let m = manual[r.id]; r.ex.forEach((e,i) => { m = Math.max(m, pick[r.id][i]); }); return m; }
+
+function computeISS(list){
+  if (list.some(m => m.v === 6)) return {iss:75, override:true, top:[]};
+  const top = list.filter(m => m.v > 0).sort((a,b) => b.v - a.v).slice(0,3);
+  return {iss: top.reduce((s,m) => s + m.v*m.v, 0), override:false, top};
+}
+function band(iss){
+  if (iss === 0) return {t:"No injuries entered", c:"var(--a0)", ink:"var(--muted)"};
+  if (iss < 9)  return {t:"Minor (<9)", c:"var(--a1)", ink:"#fff"};
+  if (iss < 16) return {t:"Moderate (9–15)", c:"var(--a2)", ink:"#2b2507"};
+  if (iss < 25) return {t:"Severe (16–24) · major trauma", c:"var(--a4)", ink:"#fff"};
+  return {t:"Very severe (≥25) · major trauma", c:"var(--a5)", ink:"#fff"};
+}
+const $ = id => document.getElementById(id);
+const refTxt = arr => "[" + arr.join(",") + "]";
+
+function render(){
+  const host = $("regions"); host.innerHTML = "";
+  REGIONS.forEach(r => {
+    const card = document.createElement("section");
+    card.className = "region";
+    card.innerHTML = `<div class="rhead"><span class="ico" aria-hidden="true">${r.ico}</span><h2>${r.name}</h2>
+      <span class="rlabel" id="l-${r.id}"></span><span class="badge num" id="b-${r.id}">0</span></div>
+      <p class="rnote">${r.note}</p>`;
+    const scale = document.createElement("div");
+    scale.className = "scale"; scale.setAttribute("role","group"); scale.setAttribute("aria-label", r.name + " AIS");
+    for (let v = 0; v <= 6; v++){
+      const b = document.createElement("button");
+      b.type = "button"; b.dataset.a = v; b.dataset.r = r.id;
+      b.innerHTML = `<b class="num">${v}</b><small>${LABELS[v]}</small>`;
+      b.title = `AIS ${v} — ${LABELS_LONG[v]}`;
+      b.addEventListener("click", () => {
+        if (v === 0){ pick[r.id] = r.ex.map(() => 0); manual[r.id] = 0; }
+        else manual[r.id] = (manual[r.id] === v ? 0 : v);
+        update();
+      });
+      scale.appendChild(b);
+    }
+    card.appendChild(scale);
+
+    const det = document.createElement("details");
+    det.className = "ex"; det.open = true;
+    det.innerHTML = `<summary>Example injuries by severity</summary>`;
+    for (let L = 1; L <= 6; L++){
+      const items = r.ex.map((e,i) => ({e,i})).filter(o => low(o.e) === L);
+      if (!items.length) continue;
+      const g = document.createElement("div"); g.className = "lvl"; g.dataset.a = L;
+      g.innerHTML = `<h3><i></i>AIS ${L} · ${LABELS_LONG[L]}</h3>`;
+      items.forEach(({e,i}) => {
+        const row = document.createElement(isRange(e) ? "div" : "button");
+        row.className = "row"; row.dataset.r = r.id; row.dataset.i = i;
+        if (!isRange(e)) row.type = "button";
+        const tag = e.b ? `<span class="tag bed">Bedside</span>` : `<span class="tag ct">CT/OR</span>`;
+        row.innerHTML = `<span class="lbl">${e.t}${e.s ? `<span class="sub">${e.s}</span>` : ""}</span>${tag}<span class="ref">${refTxt(e.r)}</span>`;
+        if (isRange(e)){
+          const pills = document.createElement("span"); pills.className = "pills";
+          e.a.forEach(v => {
+            const p = document.createElement("button");
+            p.type = "button"; p.className = "pill num"; p.textContent = v; p.dataset.v = v;
+            p.title = `Score as AIS ${v}`;
+            p.addEventListener("click", ev => { ev.stopPropagation(); setPick(r, i, v); });
+            pills.appendChild(p);
+          });
+          row.insertBefore(pills, row.querySelector(".tag"));
+          row.style.cursor = "default";
+        } else {
+          row.addEventListener("click", () => setPick(r, i, e.a));
+        }
+        g.appendChild(row);
+      });
+      det.appendChild(g);
+    }
+    card.appendChild(det);
+    const s = document.createElement("p"); s.className = "rsrc";
+    s.textContent = "Region sources: " + r.src.map(n => "[" + n + "]").join(" ");
+    card.appendChild(s);
+    host.appendChild(card);
+  });
+  $("refs").innerHTML = REFS.map(t => `<li>${t}</li>`).join("");
+  update();
+}
+
+function setPick(r, i, v){
+  const e = r.ex[i];
+  const next = pick[r.id][i] === v ? 0 : v;
+  if (e.grp && next) r.ex.forEach((o,j) => { if (o.grp === e.grp && j !== i) pick[r.id][j] = 0; });
+  pick[r.id][i] = next;
+  update();
+}
+
+function update(){
+  const list = REGIONS.map(r => ({id:r.id, name:r.name, v:regionAIS(r)}));
+  REGIONS.forEach(r => {
+    const v = list.find(x => x.id === r.id).v;
+    const b = $("b-" + r.id); b.textContent = v; b.dataset.a = v;
+    $("l-" + r.id).textContent = LABELS_LONG[v];
+    document.querySelectorAll(`.scale button[data-r="${r.id}"]`).forEach(s => s.setAttribute("aria-pressed", +s.dataset.a === v ? "true" : "false"));
+    document.querySelectorAll(`.row[data-r="${r.id}"]`).forEach(row => {
+      const i = +row.dataset.i, val = pick[r.id][i];
+      if (row.tagName === "BUTTON") row.setAttribute("aria-pressed", val ? "true" : "false");
+      else row.classList.toggle("on", !!val);
+      row.querySelectorAll(".pill").forEach(p => p.setAttribute("aria-pressed", +p.dataset.v === val ? "true" : "false"));
+    });
+  });
+
+  const res = computeISS(list);
+  $("iss").textContent = res.iss;
+  const bd = band(res.iss), be = $("band");
+  be.textContent = bd.t; be.style.background = bd.c; be.style.color = bd.ink;
+  $("override").style.display = res.override ? "block" : "none";
+
+  let anyCT = false, anyBed = false, anyManual = false;
+  REGIONS.forEach(r => {
+    r.ex.forEach((e,i) => { if (pick[r.id][i]) { if (e.b) anyBed = true; else anyCT = true; } });
+    if (manual[r.id]) anyManual = true;
+  });
+  const q = $("qual");
+  if (!anyCT && !anyBed && !anyManual){ q.textContent = ""; q.style.display = "none"; }
+  else {
+    q.style.display = "inline-block";
+    if (!anyCT && !anyManual){ q.textContent = "Bedside only — estimated ISS"; q.style.background = "var(--bed-soft)"; q.style.color = "var(--bed)"; }
+    else { q.textContent = anyCT ? "Includes CT/OR findings" : "Includes manual AIS"; q.style.background = "var(--ct-soft)"; q.style.color = "var(--ct)"; }
+  }
+
+  const f = $("formula"); f.innerHTML = "";
+  if (res.override){
+    const row = document.createElement("div"); row.className = "frow";
+    row.innerHTML = `<span class="r">${list.filter(m => m.v === 6).map(m => m.name).join(", ")}</span><span>AIS 6</span>`;
+    f.appendChild(row);
+  } else if (res.top.length){
+    res.top.forEach(m => {
+      const row = document.createElement("div"); row.className = "frow";
+      row.innerHTML = `<span class="r">${m.name}</span><span>${m.v}² = ${m.v*m.v}</span>`;
+      f.appendChild(row);
+    });
+  } else {
+    const row = document.createElement("div"); row.className = "frow dim";
+    row.innerHTML = `<span class="r">Top three regions appear here</span><span></span>`;
+    f.appendChild(row);
+  }
+
+  /* physiology outputs */
+  const P = physCalc(res.iss, res.override);
+  document.querySelectorAll(".mech button").forEach(b => b.setAttribute("aria-pressed", b.dataset.m===phys.mech ? "true":"false"));
+  $("c-gcs").innerHTML = P.cg!=null ? `Code <b>${P.cg}</b>` : "Code —";
+  $("c-sbp").innerHTML = P.cs!=null ? `Code <b>${P.cs}</b>` : "Code —";
+  $("c-rr").innerHTML  = P.cr!=null ? `Code <b>${P.cr}</b>` : "Code —";
+  $("c-age").innerHTML = P.ageIdx!=null ? `Age index <b>${P.ageIdx}</b> (≥55 = 1)` : "Age index —";
+  $("c-mech").textContent = (phys.age!=null && phys.age<15) ? "Age <15: blunt coefficients used" : "";
+  const rtsTxt = P.rts!=null ? P.rts.toFixed(2) : "—";
+  const psTxt = P.ps!=null ? (P.ps*100).toFixed(1) + "%" : "—";
+  $("o-rts").textContent = rtsTxt; $("m-rts").textContent = rtsTxt;
+  $("o-trts").textContent = P.trts!=null ? P.trts + "/12" : "—";
+  $("o-ps").textContent = psTxt; $("m-ps").textContent = psTxt;
+  renderInterp(res, P, anyCT, anyBed, anyManual);
+
+  const w = $("warns"); w.innerHTML = "";
+  const warn = t => { const d = document.createElement("div"); d.className = "warn"; d.textContent = t; w.appendChild(d); };
+  REGIONS.forEach(r => {
+    const capped = r.ex.some((e,i) => e.cap && pick[r.id][i]);
+    const v = list.find(x => x.id === r.id).v;
+    const capMax = Math.max(0, ...r.ex.map((e,i) => e.cap ? pick[r.id][i] : 0));
+    if (capped && v <= capMax) warn(`${r.name}: ungraded finding scored at its floor. ISS may be underestimated until the injury is graded.`);
+  });
+}
+
+function tierOf(res, P){
+  const minCode = Math.min(...[P.cg,P.cs,P.cr].filter(v => v!=null), 4);
+  if (res.override || res.iss>=25 || (P.ps!=null && P.ps<0.5) || minCode<=2) return 3;
+  if (res.iss>=16 || minCode===3) return 2;
+  if (res.iss>=9) return 1;
+  return 0;
+}
+const TIERS = [
+  {t:"Low anatomical severity", c:"var(--a1)", ink:"#fff", steps:[
+    "Disposition by clinical assessment and repeat vital signs; a low ISS alone does not justify discharge.",
+    "After a high-energy mechanism, complete a tertiary survey before discharge.",
+    "Re-score if new injuries are found."]},
+  {t:"Moderate", c:"var(--a2)", ink:"#2b2507", steps:[
+    "Admit or observe with serial examination.",
+    "Tertiary survey within 24 hours to pick up missed injuries.",
+    "Reassess physiology; escalate if any RTS component falls."]},
+  {t:"Major trauma", c:"var(--a4)", ink:"#fff", steps:[
+    "Meets the major-trauma definition (ISS >15) or has physiological derangement.",
+    "Trauma team care: repeat primary survey, complete secondary survey and imaging once stable.",
+    "Monitored bed (HDU or ICU according to physiology); serial reassessment.",
+    "Refer to a trauma centre early if definitive care is not available locally."]},
+  {t:"Critical", c:"var(--a5)", ink:"#fff", steps:[
+    "Senior-led trauma team; repeat ABCDE now.",
+    "Treat as immediately life-threatening: haemorrhage control, prepare OR/IR and blood products per local protocol.",
+    "ICU-level care; arrange early transfer if definitive care is not available.",
+    "Flag for trauma registry and audit."]}
+];
+function renderInterp(res, P, anyCT, anyBed, anyManual){
+  const el = $("interp");
+  const started = res.iss>0 || res.override || P.rts!=null;
+  if (!started){ el.innerHTML = `<h4>Interpretation</h4><p class="rnote">Enter injuries and physiology to see the interpretation and suggested next steps.</p>`; return; }
+  const k = tierOf(res, P), T = TIERS[k];
+  let html = `<h4>Interpretation</h4><span class="tier" style="background:${T.c};color:${T.ink}">${T.t}</span>`;
+  if (res.override) html += `<p><b>ISS 75</b> — an AIS 6 injury is currently untreatable by definition.</p>`;
+  else if (res.iss>0) html += `<p><b>ISS ${res.iss}</b> — ${band(res.iss).t.replace(" · major trauma","")}${res.iss>15 ? "; meets the usual major-trauma cut-off (ISS >15)" : ""}. Anatomical severity only.</p>`;
+  if (P.rts!=null){
+    const lows = [["GCS",P.cg],["SBP",P.cs],["RR",P.cr]].filter(x => x[1]<4).map(x => `${x[0]} (code ${x[1]})`);
+    html += `<p><b>RTS ${P.rts.toFixed(2)}</b>, T-RTS ${P.trts}/12 — ${lows.length ? "physiological derangement in " + lows.join(", ") : "all physiological components normal"}.</p>`;
+  }
+  if (P.ps!=null){
+    html += `<p><b>TRISS Ps ${(P.ps*100).toFixed(1)}%</b> — ${P.ps>=0.5 ? "expected survivor. If the patient dies, this is an unexpected death for peer review." : "expected non-survivor by MTOS norms. Survival would be an unexpected survivor."}</p>`;
+  } else if (res.iss>0 || P.rts!=null){
+    html += `<p class="rnote">TRISS needs ISS, all three RTS inputs and age.</p>`;
+  }
+  html += `<h4 style="margin-top:8px">Suggested next steps</h4><ul>${T.steps.map(x => `<li>${x}</li>`).join("")}</ul>`;
+  if (anyBed && !anyCT) html += `<p class="fine">Bedside-only estimate: organ injuries without CT or operative grading are scored at their floor, so ISS and TRISS may overestimate survival.</p>`;
+  html += `<p class="fine">TRISS uses the 1987 MTOS coefficients; later revisions exist and calibration varies across settings. Use it for prognosis and audit, not as a stand-alone treatment decision. Next steps are general ATLS-consistent suggestions for clinical judgment.</p>`;
+  el.innerHTML = html;
+}
+
+function summary(){
+  const list = REGIONS.map(r => ({name:r.name, v:regionAIS(r)}));
+  const res = computeISS(list);
+  const lines = [`ISS ${res.iss}${res.override ? " (AIS 6 override)" : ""} — ${band(res.iss).t}`];
+  if (!res.override && res.top.length) lines.push("Top regions: " + res.top.map(m => `${m.name} ${m.v}`).join(", "));
+  REGIONS.forEach(r => {
+    const v = regionAIS(r); if (!v) return;
+    const found = r.ex.map((e,i) => pick[r.id][i] ? `${e.t} (AIS ${pick[r.id][i]})` : null).filter(Boolean);
+    if (manual[r.id]) found.push(`AIS ${manual[r.id]} set manually`);
+    lines.push(`${r.name}: AIS ${v} (${LABELS_LONG[v]}) — ${found.join("; ")}`);
+  });
+  const P = physCalc(res.iss, res.override);
+  if (P.rts!=null) lines.push(`RTS ${P.rts.toFixed(2)} (GCS ${phys.gcs}, SBP ${phys.sbp}, RR ${phys.rr}); T-RTS ${P.trts}/12`);
+  if (P.ps!=null) lines.push(`TRISS Ps ${(P.ps*100).toFixed(1)}% (${P.coefSet==="pen"?"penetrating":"blunt"}, age ${phys.age})`);
+  lines.push("Category: " + TIERS[tierOf(res,P)].t);
+  return lines.join("\n");
+}
+function toast(t){ const el = $("toast"); el.textContent = t; el.classList.add("show"); setTimeout(() => el.classList.remove("show"), 1600); }
+$("copyBtn").addEventListener("click", async () => {
+  const text = summary();
+  try { await navigator.clipboard.writeText(text); toast("Summary copied"); }
+  catch(e){ const box = $("copybox"); box.value = text; box.select();
+    try { document.execCommand("copy"); toast("Summary copied"); } catch(_) { toast("Copy blocked — select text manually"); } }
+});
+$("resetBtn").addEventListener("click", () => {
+  clearAll(); ["age","gcs","sbp","rr"].forEach(id => { $(id).value = ""; phys[id] = null; }); phys.mech = "blunt"; update(); });
+bindPhys();
+render();
+</script>
+</body>
+</html>
